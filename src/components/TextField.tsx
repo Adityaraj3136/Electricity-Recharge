@@ -19,6 +19,12 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
         <input
           id={inputId}
           ref={ref}
+          onWheel={(e) => {
+            if (props.type === 'number') {
+              (e.target as HTMLElement).blur();
+            }
+            if (props.onWheel) props.onWheel(e);
+          }}
           className={cn(
             "w-full h-12 px-4 bg-gray-50 dark:bg-[#1c2a42] border border-gray-200 dark:border-[#253350] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder:text-gray-400 dark:text-white",
             error && "border-red-500 dark:border-red-500 focus:ring-red-500 bg-red-50 dark:bg-red-900/20",

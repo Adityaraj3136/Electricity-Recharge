@@ -11,9 +11,9 @@ import {
   Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search,
   Bolt, Globe, Moon, Sun, Home as HomeIcon, BarChart2,
   HelpCircle, User, Shield, ArrowRight, BookOpen, CreditCard, Hexagon
-} from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
 import { BalanceModal } from '../components/BalanceModal';
+import { HelpModal } from '../components/HelpModal';
 import { automationScript } from '../automation/automation';
 import { Network } from '@capacitor/network';
 
@@ -147,6 +147,7 @@ export function Home() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isBalanceOpen, setIsBalanceOpen] = useState(false);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [balanceDetails, setBalanceDetails] = useState<BalanceDetails | null>(null);
@@ -270,13 +271,13 @@ export function Home() {
         {/* Nav links */}
         <div className="flex items-center gap-1">
           {[
-            { label: lang === 'en' ? 'Home' : 'होम', active: true },
-            { label: lang === 'en' ? 'Help' : 'सहायता', active: false },
-            { label: lang === 'en' ? 'About' : 'के बारे में', active: false },
+            { label: lang === 'en' ? 'Home' : 'होम', active: true, onClick: () => {} },
+            { label: lang === 'en' ? 'Help' : 'सहायता', active: false, onClick: () => setIsHelpOpen(true) },
+            { label: lang === 'en' ? 'About' : 'के बारे में', active: false, onClick: () => showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!', 'success') },
           ].map((item) => (
             <button
               key={item.label}
-              onClick={() => item.active ? null : showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!', 'success')}
+              onClick={item.onClick}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 item.active
                   ? 'text-primary-600 border-b-2 border-primary-600 rounded-none'
@@ -516,7 +517,7 @@ export function Home() {
                 </div>
                 <div>
                   <p className={`text-xs font-bold leading-tight ${textPrimary}`}>{action.label}</p>
-                  <p className={`text-[10px] leading-tight mt-0.5 hidden sm:block ${textSecondary}`}>{action.desc}</p>
+                  <p className={`text-[10px] leading-tight mt-0.5 ${textSecondary}`}>{action.desc}</p>
                 </div>
               </button>
             ))}
@@ -545,7 +546,7 @@ export function Home() {
                       </span>
                     </div>
                     <p className={`text-xs font-bold leading-tight ${textPrimary}`}>{step.title}</p>
-                    <p className={`text-[10px] mt-0.5 leading-tight hidden sm:block ${textSecondary}`}>{step.desc}</p>
+                    <p className={`text-[10px] mt-0.5 leading-tight ${textSecondary}`}>{step.desc}</p>
                   </div>
                   {i < howItWorks.length - 1 && (
                     <ArrowRight size={18} className={`flex-shrink-0 mb-4 ${isDark ? 'text-[#253350]' : 'text-gray-300'}`} />
@@ -603,9 +604,9 @@ export function Home() {
             {/* Quick Links */}
             <div>
               <h4 className="text-white font-semibold text-sm mb-3">{lang === 'en' ? 'Quick Links' : 'त्वरित लिंक'}</h4>
-              {[lang === 'en' ? 'Home' : 'होम', lang === 'en' ? 'Help' : 'सहायता', lang === 'en' ? 'About' : 'के बारे में'].map(l => (
-                <button key={l} className="block text-blue-300 text-xs hover:text-white mb-1.5 transition-colors text-left">{l}</button>
-              ))}
+              <button onClick={() => window.scrollTo(0, 0)} className="block text-blue-300 text-xs hover:text-white mb-1.5 transition-colors text-left">{lang === 'en' ? 'Home' : 'होम'}</button>
+              <button onClick={() => setIsHelpOpen(true)} className="block text-blue-300 text-xs hover:text-white mb-1.5 transition-colors text-left">{lang === 'en' ? 'Help' : 'सहायता'}</button>
+              <button onClick={() => showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!')} className="block text-blue-300 text-xs hover:text-white mb-1.5 transition-colors text-left">{lang === 'en' ? 'About' : 'के बारे में'}</button>
             </div>
             {/* Support */}
             <div>
@@ -639,37 +640,39 @@ export function Home() {
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-end justify-around px-2 pt-2 pb-2">
           {[
-            { icon: <HomeIcon size={20} />, label: lang === 'en' ? 'Home' : 'होम', active: true },
+            { icon: <HomeIcon size={22} />, label: lang === 'en' ? 'Home' : 'होम', active: true },
           ].map((item) => (
             <button
               key={item.label}
               onClick={() => !item.active && showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!')}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${item.active ? 'text-primary-600' : textSecondary}`}
+              className={`flex flex-col items-center gap-1 px-4 py-1 rounded-2xl transition-all ${item.active ? 'text-primary-600 font-bold' : `${textSecondary} hover:text-primary-500`}`}
             >
               {item.icon}
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-[11px] leading-none">{item.label}</span>
             </button>
           ))}
 
           {/* Center FAB */}
-          <button
-            onClick={() => { resetForm(); setIsAddOpen(true); }}
-            className="-mt-5 hover:bg-primary-700 rounded-full flex items-center justify-center shadow-xl shadow-primary-500/40 active:scale-95 transition-all border-4 border-white dark:border-[#162033]"
-          >
-            <AppLogo className="w-12 h-12 bg-primary-600 rounded-full" />
-          </button>
+          <div className="relative -mt-8 flex justify-center">
+            <button
+              onClick={() => { resetForm(); setIsAddOpen(true); }}
+              className="w-16 h-16 bg-primary-600 hover:bg-primary-700 text-white rounded-full flex items-center justify-center shadow-lg shadow-primary-500/40 active:scale-90 transition-all border-[6px] border-white dark:border-[#162033] z-50"
+            >
+              <AppLogo className="w-12 h-12 bg-transparent" />
+            </button>
+          </div>
 
           {[
-            { icon: <HelpCircle size={20} />, label: lang === 'en' ? 'Help' : 'सहायता', active: false },
-            { icon: <User size={20} />, label: lang === 'en' ? 'Profile' : 'प्रोफ़ाइल', active: false },
+            { icon: <HelpCircle size={22} />, label: lang === 'en' ? 'Help' : 'सहायता', active: false, onClick: () => setIsHelpOpen(true) },
+            { icon: <User size={22} />, label: lang === 'en' ? 'Profile' : 'प्रोफ़ाइल', active: false, onClick: () => setIsSettingsOpen(true) },
           ].map((item) => (
             <button
               key={item.label}
-              onClick={() => item.label === (lang === 'en' ? 'Profile' : 'प्रोफ़ाइल') ? setIsSettingsOpen(true) : showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!')}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${textSecondary}`}
+              onClick={item.onClick}
+              className={`flex flex-col items-center gap-1 px-4 py-1 rounded-2xl transition-all ${textSecondary} hover:text-primary-500`}
             >
               {item.icon}
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-[11px] leading-none font-medium">{item.label}</span>
             </button>
           ))}
         </div>
@@ -690,10 +693,10 @@ export function Home() {
             </div>
           </div>
           <TextField label={t.form.labelName} value={name} onChange={e => setName(e.target.value)} placeholder={t.form.placeholderName} />
-          <TextField label={t.form.labelCA} type="number" value={caNumber} onChange={e => setCaNumber(e.target.value)} placeholder={t.form.placeholderCA} />
+          <TextField label={t.form.labelCA} type="text" inputMode="numeric" pattern="[0-9]*" value={caNumber} onChange={e => setCaNumber(e.target.value)} placeholder={t.form.placeholderCA} />
           <div className="grid grid-cols-2 gap-3">
             <TextField label={t.form.labelMobile} type="tel" value={mobile} onChange={e => setMobile(e.target.value)} placeholder={t.form.placeholderMobile} />
-            <TextField label={t.form.labelAmount} type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder={t.form.placeholderAmount} />
+            <TextField label={t.form.labelAmount} type="text" inputMode="numeric" pattern="[0-9]*" value={amount} onChange={e => setAmount(e.target.value)} placeholder={t.form.placeholderAmount} />
           </div>
           <Select label={t.form.labelGateway} value={gateway} onChange={e => setGateway(e.target.value)} options={[
             { value: 'Bank of Baroda', label: 'Bank of Baroda' },
@@ -718,6 +721,9 @@ export function Home() {
 
       {/* Settings Modal */}
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+      {/* Help Modal */}
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
 
       {/* Balance Modal */}
       <BalanceModal
