@@ -253,6 +253,13 @@ export function Home() {
 
           browser.addEventListener('beforeload', (event: any, callback: any) => {
             const url = event.url || '';
+            
+            // Intercept app://home URL from the FAB button
+            if (url.startsWith('app://home') || url.startsWith('app%3A//home')) {
+              browser.close();
+              return;
+            }
+
             const isUpiIntent = url.startsWith('upi://') || url.startsWith('intent://') || 
                                 url.startsWith('paytmmp://') || url.startsWith('phonepe://') || 
                                 url.startsWith('tez://') || url.startsWith('gpay://');
@@ -260,14 +267,6 @@ export function Home() {
               win.cordova.InAppBrowser.open(url, '_system');
             } else if (callback) {
               callback(url);
-            }
-          });
-
-          // Intercept app://home URL from the FAB button — most reliable on Android & iOS
-          browser.addEventListener('loadstart', (event: any) => {
-            const url = event.url || '';
-            if (url.startsWith('app://home') || url.startsWith('app%3A//home')) {
-              browser.close();
             }
           });
 
