@@ -220,6 +220,14 @@ export function Home() {
             }
           });
 
+          // Intercept app://home URL from the FAB button — most reliable on Android & iOS
+          browser.addEventListener('loadstart', (event: any) => {
+            const url = event.url || '';
+            if (url.startsWith('app://home') || url.startsWith('app%3A//home')) {
+              browser.close();
+            }
+          });
+
           let scriptInjected = false;
           browser.addEventListener('loadstop', () => {
             // Inject persistent floating Home FAB on every page load
@@ -228,15 +236,35 @@ export function Home() {
                 if (document.getElementById('br-home-fab')) return;
                 const fab = document.createElement('div');
                 fab.id = 'br-home-fab';
-                fab.innerHTML = '🏠 Home';
-                fab.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#2563eb; color:white; padding:12px 20px; border-radius:30px; font-family:sans-serif; font-weight:bold; font-size:14px; box-shadow:0 4px 12px rgba(37,99,235,0.4); z-index:2147483647; cursor:pointer; display:flex; align-items:center; gap:6px;';
-                fab.onclick = function() {
-                  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cordova_iab) {
-                    window.webkit.messageHandlers.cordova_iab.postMessage(JSON.stringify({ type: 'CLOSE_BROWSER' }));
-                  } else {
-                    window.location.href = 'gap-iab://close';
-                  }
-                };
+                fab.innerHTML = '\u2190 Home';
+                fab.style.cssText = [
+                  'position:fixed',
+                  'bottom:24px',
+                  'right:20px',
+                  'background:#2563eb',
+                  'color:white',
+                  'padding:14px 22px',
+                  'border-radius:32px',
+                  'font-family:sans-serif',
+                  'font-weight:bold',
+                  'font-size:15px',
+                  'box-shadow:0 6px 20px rgba(37,99,235,0.5)',
+                  'z-index:2147483647',
+                  'cursor:pointer',
+                  'border:none',
+                  'outline:none',
+                  '-webkit-tap-highlight-color:transparent',
+                  'user-select:none',
+                  'touch-action:manipulation'
+                ].join(';');
+                fab.addEventListener('touchend', function(e) {
+                  e.preventDefault();
+                  window.location.href = 'app://home';
+                }, { passive: false });
+                fab.addEventListener('click', function(e) {
+                  e.preventDefault();
+                  window.location.href = 'app://home';
+                });
                 document.body.appendChild(fab);
               })();
             `});
