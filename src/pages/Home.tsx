@@ -9,7 +9,6 @@ import { Modal } from '../components/Modal';
 import type { Consumer } from '../types';
 import { Plus, Settings, Zap, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 // Removed unused automationScript import
-import { EmbeddedBrowser } from '../components/EmbeddedBrowser';
 import { SettingsModal } from '../components/SettingsModal';
 
 export function Home() {
@@ -27,10 +26,8 @@ export function Home() {
   // Action Menu State
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
 
-// Removed copied state as script copy handled in EmbeddedBrowser
-
-  // Embedded Browser State
-  const [embeddedConsumer, setEmbeddedConsumer] = useState<Consumer | null>(null);
+  // Toast State
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -94,8 +91,20 @@ export function Home() {
   };
 
   const handleRecharge = (consumer: Consumer) => {
-    // Set the selected consumer for embedded view
-    setEmbeddedConsumer(consumer);
+    // Mobile Web Flow: Copy CA Number & Open Portal
+    navigator.clipboard.writeText(consumer.caNumber).then(() => {
+      setToastMessage(`CA Number copied! Please paste it on the website.`);
+      
+      // Hide toast after 3 seconds
+      setTimeout(() => setToastMessage(null), 4000);
+      
+      // Open SBPDCL portal in a new tab
+      window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
+    }).catch(err => {
+      console.error('Failed to copy', err);
+      // Fallback if clipboard fails
+      window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
+    });
   };
 
   return (
@@ -248,12 +257,12 @@ export function Home() {
 
 // Removed Progress Modal – EmbeddedBrowser shows its own progress UI
 
-      {/* Embedded Browser */}
-      {embeddedConsumer && (
-        <EmbeddedBrowser
-          consumer={embeddedConsumer}
-          onClose={() => setEmbeddedConsumer(null)}
-        />
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-in fade-in slide-in-from-bottom-5">
+          <Zap size={20} className="text-yellow-400" />
+          <p className="text-sm font-medium">{toastMessage}</p>
+        </div>
       )}
 
       {/* Settings Modal */}
