@@ -99,7 +99,25 @@ export function Home() {
         // Type safety workaround for cordova plugins
         const win = window as any;
         if (win.cordova && win.cordova.InAppBrowser) {
-          const browser = win.cordova.InAppBrowser.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank', 'location=yes,clearcache=yes,clearsessioncache=yes');
+          const browser = win.cordova.InAppBrowser.open(
+            'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
+            '_blank',
+            [
+              'location=no',           // ← hides the URL bar completely
+              'toolbar=yes',           // keep toolbar for close button
+              'toolbarcolor=#3730a3',  // branded purple toolbar
+              'closebuttoncaption=✕ Close',
+              'closebuttoncolor=#ffffff',
+              'navigationbuttoncolor=#ffffff',
+              'hidenavigationbuttons=yes', // hide back/forward (prevent navigation)
+              'hideurlbar=yes',        // extra safety for some Android builds
+              'zoom=no',               // prevent zoom (layout inspection)
+              'clearcache=yes',
+              'clearsessioncache=yes',
+              'hardwareback=yes',
+              'allowInlineMediaPlayback=no',
+            ].join(',')
+          );
           
           browser.addEventListener('loadstop', () => {
             const script = `

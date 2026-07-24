@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Only allow HTTPS connections. Block all plain HTTP. -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system CA certificates only (no user-installed CAs) -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Explicitly allow SBPDCL portal domain -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">wss.sbpdcl.co.in</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>
