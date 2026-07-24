@@ -515,7 +515,7 @@ export function Home() {
       {/* ════════════════════════════════════════════════════════
           MOBILE HEADER
       ════════════════════════════════════════════════════════ */}
-      <header className={`md:hidden flex items-center justify-between px-4 py-3 ${sectionBg} border-b ${isDark ? 'border-[#253350]' : 'border-gray-100'} sticky top-0 z-40`} style={{ paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))' }}>
+      <header className={`md:hidden flex items-center justify-between px-4 py-3 ${sectionBg} border-b ${isDark ? 'border-[#253350]' : 'border-gray-100'} sticky top-0 z-40 ${activeTab === 'meters' ? 'hidden' : ''}`} style={{ paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))' }}>
         <div className="flex items-center gap-2">
           <AppLogo className="w-7 h-7 bg-primary-600 rounded-lg" />
           <span className={`font-bold text-base ${textPrimary}`}>{t.appName}</span>
@@ -537,7 +537,7 @@ export function Home() {
       {/* ════════════════════════════════════════════════════════
           HERO SECTION
       ════════════════════════════════════════════════════════ */}
-      <section className={`relative overflow-hidden ${isDark ? 'bg-[#0e1726]' : 'bg-gradient-to-br from-[#e8f0fe] via-[#f0f5ff] to-[#e8f0fe]'}`}>
+      <section className={`relative overflow-hidden ${isDark ? 'bg-[#0e1726]' : 'bg-gradient-to-br from-[#e8f0fe] via-[#f0f5ff] to-[#e8f0fe]'} ${activeTab === 'meters' ? 'hidden md:block' : ''}`}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-12 flex flex-col md:flex-row items-center gap-6 md:gap-10">
 
           {/* Left — text */}
