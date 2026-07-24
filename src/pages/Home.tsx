@@ -7,6 +7,7 @@ import { TextField } from '../components/TextField';
 import { Select } from '../components/Select';
 import { Modal } from '../components/Modal';
 import type { Consumer, BalanceDetails } from '../types';
+import heroImage from '../assets/hero.jpg';
 import {
   Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search,
   Bolt, Globe, Moon, Sun, Home as HomeIcon, BarChart2, List,
@@ -600,7 +601,7 @@ export function Home() {
 
           {/* Right — illustration */}
           <div className="flex-shrink-0 w-full md:w-1/2 lg:w-[55%]">
-            <img src="/hero.jpg" alt="Bijli Bill Assan" className="w-full h-auto rounded-3xl shadow-[0_10px_40px_-10px_rgba(37,99,235,0.3)] object-cover border border-white/20" />
+            <img src={heroImage} alt="Bijli Bill Assan" className="w-full h-auto rounded-3xl shadow-[0_10px_40px_-10px_rgba(37,99,235,0.3)] object-cover border border-white/20" />
           </div>
         </div>
       </section>
