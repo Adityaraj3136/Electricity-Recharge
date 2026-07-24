@@ -152,6 +152,8 @@ export function Home() {
   const [isBalanceOpen, setIsBalanceOpen] = useState(false);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [balanceDetails, setBalanceDetails] = useState<BalanceDetails | null>(null);
+  const [balanceModalMode, setBalanceModalMode] = useState<'view' | 'recharge'>('view');
+  const [activeConsumer, setActiveConsumer] = useState<Consumer | null>(null);
   const [activeTab, setActiveTab] = useState<'home' | 'meters'>('home');
   const [iframeConsumer, setIframeConsumer] = useState<Consumer | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -231,104 +233,121 @@ export function Home() {
     setActionMenuId(null);
   };
 
-  const handleRecharge = async (consumer: Consumer) => {
+  const startSbpdclAutomation = async (consumer: Consumer, finalAmount: string) => {
     const status = await Network.getStatus();
     if (!status.connected) { showToast(t.toast.offline, 'error'); return; }
+    
+    // Fallback to desktop iframe if not native
     import('@capacitor/core').then(({ Capacitor }) => {
-      if (Capacitor.isNativePlatform()) {
-        showToast(`${t.toast.rechargeStart} ${consumer.name}...`);
-        const win = window as any;
-        if (win.cordova?.InAppBrowser) {
-          const browser = win.cordova.InAppBrowser.open(
-            'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank',
-            ['location=no','toolbar=yes','toolbarcolor=#2563eb','closebuttoncaption=✕ Close',
-             'closebuttoncolor=#ffffff','hidenavigationbuttons=yes','hideurlbar=yes',
-             'zoom=no','clearcache=yes','clearsessioncache=yes','hardwareback=yes','beforeload=yes'].join(',')
-          );
-          
-          browser.addEventListener('message', (event: any) => {
-            try {
-              const data = JSON.parse(event.data);
-              if (data.type === 'CLOSE_BROWSER') {
-                browser.close();
-              }
-            } catch (e) {}
-          });
-
-          browser.addEventListener('beforeload', (event: any, callback: any) => {
-            const url = event.url || '';
-            
-            // Intercept app://home URL from the FAB button
-            if (url.startsWith('app://home') || url.startsWith('app%3A//home')) {
-              browser.close();
-              return;
-            }
-
-            const isUpiIntent = url.startsWith('upi://') || url.startsWith('intent://') || 
-                                url.startsWith('paytmmp://') || url.startsWith('phonepe://') || 
-                                url.startsWith('tez://') || url.startsWith('gpay://');
-            if (isUpiIntent) {
-              win.cordova.InAppBrowser.open(url, '_system');
-            } else if (callback) {
-              callback(url);
-            }
-          });
-
-          let scriptInjected = false;
-          browser.addEventListener('loadstop', () => {
-            // Inject persistent floating Home FAB on every page load
-            browser.executeScript({ code: `
-              (function() {
-                if (document.getElementById('br-home-fab')) return;
-                const fab = document.createElement('div');
-                fab.id = 'br-home-fab';
-                fab.innerHTML = '\u2190 Home';
-                fab.style.cssText = [
-                  'position:fixed',
-                  'bottom:24px',
-                  'right:20px',
-                  'background:#2563eb',
-                  'color:white',
-                  'padding:14px 22px',
-                  'border-radius:32px',
-                  'font-family:sans-serif',
-                  'font-weight:bold',
-                  'font-size:15px',
-                  'box-shadow:0 6px 20px rgba(37,99,235,0.5)',
-                  'z-index:2147483647',
-                  'cursor:pointer',
-                  'border:none',
-                  'outline:none',
-                  '-webkit-tap-highlight-color:transparent',
-                  'user-select:none',
-                  'touch-action:manipulation'
-                ].join(';');
-                fab.addEventListener('touchend', function(e) {
-                  e.preventDefault();
-                  window.location.href = 'app://home';
-                }, { passive: false });
-                fab.addEventListener('click', function(e) {
-                  e.preventDefault();
-                  window.location.href = 'app://home';
-                });
-                document.body.appendChild(fab);
-              })();
-            `});
-
-            if (scriptInjected) return;
-            scriptInjected = true;
-            browser.executeScript({ code: automationScript });
-            setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.startSbpdclAutomation==='function') window.startSbpdclAutomation({caNumber: '${consumer.caNumber}', mobileNumber: '${consumer.mobileNumber || ''}', amount: '${consumer.preferredAmount || ''}', gateway: '${consumer.preferredGateway || ''}'}); },1500);` }), 500);
-          });
-        } else { window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank'); }
-      } else {
-        // Desktop: open embedded iframe modal
-        setIframeConsumer(consumer);
+      if (!Capacitor.isNativePlatform()) {
+        const tempConsumer = { ...consumer, preferredAmount: finalAmount };
+        setIframeConsumer(tempConsumer);
+        return;
       }
+
+      showToast(`${t.toast.rechargeStart} ${consumer.name}...`);
+      const win = window as any;
+      if (win.cordova?.InAppBrowser) {
+        const browser = win.cordova.InAppBrowser.open(
+          'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank',
+          ['location=no','toolbar=yes','toolbarcolor=#2563eb','closebuttoncaption=✕ Close',
+           'closebuttoncolor=#ffffff','hidenavigationbuttons=yes','hideurlbar=yes',
+           'zoom=no','clearcache=yes','clearsessioncache=yes','hardwareback=yes','beforeload=yes'].join(',')
+        );
+        
+        browser.addEventListener('message', (event: any) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'CLOSE_BROWSER') {
+              browser.close();
+            }
+          } catch (e) {}
+        });
+
+        browser.addEventListener('beforeload', (event: any, callback: any) => {
+          const url = event.url || '';
+          
+          // Intercept app://home URL from the FAB button
+          if (url.startsWith('app://home') || url.startsWith('app%3A//home')) {
+            browser.close();
+            return;
+          }
+
+          const isUpiIntent = url.startsWith('upi://') || url.startsWith('intent://') || 
+                              url.startsWith('paytmmp://') || url.startsWith('phonepe://') || 
+                              url.startsWith('tez://') || url.startsWith('gpay://');
+          if (isUpiIntent) {
+            browser.close();
+            win.cordova.InAppBrowser.open(url, '_system');
+          } else if (callback) {
+            callback(url);
+          }
+        });
+
+        let scriptInjected = false;
+        browser.addEventListener('loadstop', () => {
+          // Inject persistent floating Home FAB on every page load
+          browser.executeScript({ code: `
+            (function() {
+              if (document.getElementById('br-home-fab')) return;
+              const fab = document.createElement('div');
+              fab.id = 'br-home-fab';
+              fab.innerHTML = '\\u2190 Home';
+              fab.style.cssText = [
+                'position:fixed',
+                'bottom:24px',
+                'right:20px',
+                'background:#2563eb',
+                'color:white',
+                'padding:14px 22px',
+                'border-radius:32px',
+                'font-family:sans-serif',
+                'font-weight:bold',
+                'font-size:15px',
+                'box-shadow:0 6px 20px rgba(37,99,235,0.5)',
+                'z-index:2147483647',
+                'cursor:pointer',
+                'border:none',
+                'outline:none',
+                '-webkit-tap-highlight-color:transparent',
+                'user-select:none',
+                'touch-action:manipulation'
+              ].join(';');
+              fab.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                window.location.href = 'app://home';
+              }, { passive: false });
+              fab.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.location.href = 'app://home';
+              });
+              document.body.appendChild(fab);
+            })();
+          `});
+
+          if (scriptInjected) return;
+          scriptInjected = true;
+          browser.executeScript({ code: automationScript });
+          setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.startSbpdclAutomation==='function') window.startSbpdclAutomation({caNumber: '${consumer.caNumber}', mobileNumber: '${consumer.mobileNumber || ''}', amount: '${finalAmount}', gateway: '${consumer.preferredGateway || ''}'}); },1500);` }), 500);
+        });
+      } else { window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank'); }
     });
   };
 
+
+  const handleRecharge = async (consumer: Consumer) => {
+    setActiveConsumer(consumer);
+    setBalanceModalMode('recharge');
+    await fetchBalanceDetails(consumer);
+  };
+
   const handleCheckBalance = async (consumer: Consumer) => {
+    setActiveConsumer(consumer);
+    setBalanceModalMode('view');
+    await fetchBalanceDetails(consumer);
+  };
+
+  const fetchBalanceDetails = async (consumer: Consumer) => {
     const status = await Network.getStatus();
     if (!status.connected) { showToast(t.toast.offline, 'error'); return; }
     import('@capacitor/core').then(({ Capacitor }) => {
@@ -1074,6 +1093,13 @@ export function Home() {
         onClose={() => { setIsBalanceOpen(false); setBalanceDetails(null); }}
         details={balanceDetails}
         isLoading={isBalanceLoading}
+        mode={balanceModalMode}
+        defaultAmount={activeConsumer?.preferredAmount || ''}
+        onRecharge={(amount) => {
+          setIsBalanceOpen(false);
+          setBalanceDetails(null);
+          if (activeConsumer) startSbpdclAutomation(activeConsumer, amount);
+        }}
       />
 
       {/* ════ DESKTOP IFRAME MODAL ════ */}
