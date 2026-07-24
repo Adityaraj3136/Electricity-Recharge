@@ -11,7 +11,7 @@ import heroImage from '../assets/hero.jpg';
 import {
   Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search,
   Bolt, Globe, Moon, Sun, Home as HomeIcon, BarChart2, List,
-  HelpCircle, User, Shield, ArrowRight, BookOpen, CreditCard, Hexagon, Activity,
+  HelpCircle, Shield, ArrowRight, BookOpen, CreditCard, Hexagon, Activity,
   RefreshCw
 } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
