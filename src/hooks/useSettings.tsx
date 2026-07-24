@@ -5,6 +5,7 @@ export interface AppSettings {
   biometricLock: boolean;
   reminderEnabled: boolean;
   reminderDay: number;
+  fontSize: 'small' | 'medium' | 'large';
 }
 
 const defaultSettings: AppSettings = {
@@ -12,6 +13,7 @@ const defaultSettings: AppSettings = {
   biometricLock: false,
   reminderEnabled: false,
   reminderDay: 1,
+  fontSize: 'medium',
 };
 
 // Single canonical key — migrates from old 'app_settings' key if needed
@@ -46,8 +48,19 @@ function applyDarkMode(enabled: boolean) {
   }
 }
 
+function applyFontSize(size: 'small' | 'medium' | 'large') {
+  const sizeMap = {
+    small: '14px',
+    medium: '16px',
+    large: '18px'
+  };
+  document.documentElement.style.fontSize = sizeMap[size] || '16px';
+}
+
 // Apply immediately on module load (before React mounts) to avoid flash
-applyDarkMode(loadSettings().darkMode);
+const initialSettings = loadSettings();
+applyDarkMode(initialSettings.darkMode);
+applyFontSize(initialSettings.fontSize);
 
 interface SettingsContextValue {
   settings: AppSettings;
@@ -63,6 +76,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     applyDarkMode(settings.darkMode);
   }, [settings.darkMode]);
+
+  // Keep <html> font-size in sync whenever fontSize changes
+  useEffect(() => {
+    applyFontSize(settings.fontSize);
+  }, [settings.fontSize]);
 
   const updateSettings = (updates: Partial<AppSettings>) => {
     setSettings(prev => {

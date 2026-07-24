@@ -64,6 +64,12 @@ export const translations = {
       edit: 'Edit',
       delete: 'Delete',
     },
+    settings: {
+      fontSize: 'Font Size',
+      fontSmall: 'Small',
+      fontMedium: 'Medium',
+      fontLarge: 'Large',
+    },
   },
   hi: {
     appName: 'बिजली रिचार्ज',
@@ -128,6 +134,12 @@ export const translations = {
       confirm: 'यह मीटर हटाएं?',
       edit: 'संपादित करें',
       delete: 'हटाएं',
+    },
+    settings: {
+      fontSize: 'फ़ॉन्ट का आकार',
+      fontSmall: 'छोटा',
+      fontMedium: 'मध्यम',
+      fontLarge: 'बड़ा',
     },
   },
 } as const;

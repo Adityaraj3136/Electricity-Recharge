@@ -5,8 +5,9 @@ import { useSettings } from '../hooks/useSettings';
 import { storage } from '../storage';
 import {
   Download, Upload, Moon, Sun, Info, Shield,
-  ChevronRight, Lock, Bell, BellOff, AlertTriangle, CheckCircle2
+  ChevronRight, Lock, Bell, BellOff, AlertTriangle, CheckCircle2, Type
 } from 'lucide-react';
+import { useLang } from '../i18n/LanguageContext';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 
@@ -75,6 +76,7 @@ type NotifStatus = 'idle' | 'requesting' | 'granted' | 'denied';
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { consumers, refresh } = useConsumers();
   const { settings, updateSettings } = useSettings();
+  const { t } = useLang();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [notifStatus, setNotifStatus] = useState<NotifStatus>('idle');
   const [scheduleError, setScheduleError] = useState<string | null>(null);
@@ -213,6 +215,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
               <Toggle active={settings.darkMode} />
             </RowBtn>
+
+            <div className="flex items-center justify-between p-3 rounded-lg">
+              <div className="flex items-center gap-3 text-gray-700 dark:text-gray-200">
+                <Type size={20} />
+                <span className="font-medium">{t.settings?.fontSize || 'Font Size'}</span>
+              </div>
+              <div className="flex bg-gray-200 dark:bg-[#0e1726] rounded-lg p-1 gap-1">
+                {(['small', 'medium', 'large'] as const).map(size => (
+                  <button
+                    key={size}
+                    onClick={() => updateSettings({ fontSize: size })}
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${settings.fontSize === size ? 'bg-white dark:bg-[#253350] text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+                  >
+                    {size === 'small' ? t.settings?.fontSmall || 'Small' : size === 'medium' ? t.settings?.fontMedium || 'Medium' : t.settings?.fontLarge || 'Large'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
 
             {isNative() && (
               <RowBtn onClick={toggleBiometric}>

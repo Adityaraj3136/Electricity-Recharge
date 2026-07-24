@@ -601,7 +601,7 @@ export function Home() {
 
           {/* Right — illustration */}
           <div className="flex-shrink-0 w-full md:w-1/2 lg:w-[55%]">
-            <img src={heroImage} alt="Bijli Bill Assan" className="w-full h-auto rounded-3xl shadow-[0_10px_40px_-10px_rgba(37,99,235,0.3)] object-cover border border-white/20" />
+            <img src={heroImage} alt="Bijli Bill Assan" loading="lazy" className="w-full h-auto rounded-3xl shadow-[0_10px_40px_-10px_rgba(37,99,235,0.3)] object-cover border border-white/20" />
           </div>
         </div>
       </section>
