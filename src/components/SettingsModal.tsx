@@ -80,6 +80,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [notifStatus, setNotifStatus] = useState<NotifStatus>('idle');
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [showContactModal, setShowContactModal] = useState(false);
 
   // Check current permission state when the modal opens
   useEffect(() => {
@@ -176,6 +177,60 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     reader.readAsText(file);
   };
 
+  // ── Contact Developer ──────────────────────────────────────────────────────
+  const openContact = () => {
+    const url = 'https://adityaraj3136.github.io/contact/';
+    if (isNative()) {
+      const win = window as any;
+      if (win.cordova?.InAppBrowser) {
+        const browser = win.cordova.InAppBrowser.open(url, '_blank', 'location=no,zoom=no');
+        
+        browser.addEventListener('loadstart', (event: any) => {
+          const navUrl = event.url || '';
+          if (navUrl.startsWith('app://home') || navUrl.startsWith('app%3A//home')) {
+            browser.close();
+          }
+        });
+
+        browser.addEventListener('loadstop', () => {
+          browser.executeScript({ code: `
+            (function() {
+              if (document.getElementById('br-home-fab')) return;
+              const fab = document.createElement('div');
+              fab.id = 'br-home-fab';
+              fab.innerHTML = '\\u2190 Home';
+              fab.style.cssText = [
+                'position:fixed',
+                'bottom:24px',
+                'right:20px',
+                'background:#2563eb',
+                'color:white',
+                'padding:14px 22px',
+                'border-radius:32px',
+                'font-family:sans-serif',
+                'font-weight:bold',
+                'font-size:15px',
+                'box-shadow:0 6px 20px rgba(37,99,235,0.5)',
+                'z-index:2147483647',
+                'cursor:pointer',
+                'border:none',
+                'outline:none',
+                '-webkit-tap-highlight-color:transparent',
+                'user-select:none',
+              ].join(';');
+              fab.onclick = function() {
+                window.location.href = 'app://home';
+              };
+              document.body.appendChild(fab);
+            })();
+          `});
+        });
+      }
+    } else {
+      setShowContactModal(true);
+    }
+  };
+
   // ─── Toggle Component ──────────────────────────────────────────────────────
   const Toggle = ({ active }: { active: boolean }) => (
     <div className={`w-12 h-6 rounded-full transition-colors duration-200 flex items-center p-1 ${active ? 'bg-primary-600' : 'bg-gray-300 dark:bg-[#253350]'}`}>
@@ -194,6 +249,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
+    <>
     <Modal isOpen={isOpen} onClose={onClose} title="Settings">
       <div className="space-y-6 pt-2">
 
@@ -376,7 +432,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </span>
             </div>
             <button
-              onClick={() => window.open('https://adityaraj3136.github.io/contact/', '_blank')}
+              onClick={openContact}
               className="w-full mt-2 py-2.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-lg text-sm font-semibold hover:bg-primary-200 dark:hover:bg-primary-800/40 transition-colors"
             >
               Contact Developer for Updates
@@ -391,5 +447,18 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
       </div>
     </Modal>
+
+    {showContactModal && !isNative() && (
+      <Modal isOpen={showContactModal} onClose={() => setShowContactModal(false)} title="Contact Developer">
+        <div className="w-full h-[60vh] -mx-6 -mb-6 mt-[-10px]">
+          <iframe 
+            src="https://adityaraj3136.github.io/contact/" 
+            className="w-full h-full border-0 bg-white dark:bg-slate-900"
+            title="Contact Developer"
+          />
+        </div>
+      </Modal>
+    )}
+    </>
   );
 }
