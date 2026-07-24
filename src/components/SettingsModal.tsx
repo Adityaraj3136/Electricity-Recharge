@@ -449,7 +449,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     </Modal>
 
     {showContactModal && !isNative() && (
-      <Modal isOpen={showContactModal} onClose={() => setShowContactModal(false)} title="Contact Developer">
+      <Modal 
+        isOpen={showContactModal} 
+        onClose={() => setShowContactModal(false)} 
+        title="Contact Developer"
+        maxWidth="sm:max-w-4xl"
+      >
         <div className="w-full h-[60vh] -mx-6 -mb-6 mt-[-10px]">
           <iframe 
             src="https://adityaraj3136.github.io/contact/" 

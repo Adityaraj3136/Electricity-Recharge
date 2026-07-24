@@ -6,9 +6,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  maxWidth?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, maxWidth = 'sm:max-w-md' }: ModalProps) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
 
@@ -18,9 +19,14 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       // Small delay to allow mount before triggering animation
       requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
       document.body.style.overflow = 'hidden';
+      document.body.setAttribute('data-modal-count', String((parseInt(document.body.getAttribute('data-modal-count') || '0', 10)) + 1));
     } else {
       setVisible(false);
-      document.body.style.overflow = 'unset';
+      const count = parseInt(document.body.getAttribute('data-modal-count') || '1', 10) - 1;
+      document.body.setAttribute('data-modal-count', String(count));
+      if (count <= 0) {
+        document.body.style.overflow = 'unset';
+      }
       // Unmount after animation completes
       const timer = setTimeout(() => setMounted(false), 350);
       return () => clearTimeout(timer);
@@ -28,7 +34,13 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   }, [isOpen]);
 
   useEffect(() => {
-    return () => { document.body.style.overflow = 'unset'; };
+    return () => { 
+      const count = parseInt(document.body.getAttribute('data-modal-count') || '1', 10) - 1;
+      document.body.setAttribute('data-modal-count', String(Math.max(0, count)));
+      if (count <= 0) {
+        document.body.style.overflow = 'unset';
+      }
+    };
   }, []);
 
   if (!mounted) return null;
@@ -44,7 +56,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
       {/* Sheet */}
       <div
-        className="fixed inset-x-0 bottom-0 z-50 sm:relative sm:max-w-md w-full transition-all duration-350"
+        className={`fixed inset-x-0 bottom-0 z-50 sm:relative ${maxWidth} w-full transition-all duration-350`}
         style={{
           transform: visible ? 'translateY(0)' : 'translateY(100%)',
           opacity: visible ? 1 : 0,
