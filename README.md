@@ -17,15 +17,19 @@ A secure, mobile-first Android App (and Progressive Web App) designed to help yo
 
 ### 🔒 Enterprise-Grade Security
 The Android APK has been heavily hardened to prevent tampering:
+- **Biometric App Lock**: Require fingerprint or face unlock to open the app (Settings option).
+- **Anti-Tampering Guard**: Prevents app recompilation or package ID changes.
 - **No URL Bar**: The browser operates completely chromeless, preventing URL manipulation.
 - **HTTPS Only**: Plain text HTTP traffic is blocked at the OS level via `network_security_config.xml`.
 - **System CAs Only**: Ignores user-installed certificates, protecting against Man-in-the-Middle (MITM) attacks.
 - **ADB Backup Disabled**: Prevents extraction of local data via USB debugging (`allowBackup=false`).
-- **Release APKs**: Disables attachable debuggers in production.
 
 ### 📱 Premium Native Experience
 - Built with React + Vite + Tailwind CSS v4, wrapped in **Capacitor**.
 - **Material Design UI**: Beautiful glassmorphism effects, dynamic colors, and smooth micro-animations.
+- **True Dark Mode 🌙**: A sleek deep-blue dark mode that saves battery and is easy on the eyes.
+- **Monthly Reminders**: Get a local push notification on a custom day of the month to remind you to recharge.
+- **Offline Detection**: Prevents attempting to load the portal when you have no internet connection.
 - **Local Storage**: All your saved consumer CA numbers stay strictly on your device.
 - **Backup & Restore**: Easily export and import your saved consumer list via JSON.
 
