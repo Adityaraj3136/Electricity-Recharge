@@ -1,15 +1,15 @@
 export const automationScript = `
 (function(window) {
   const TIMEOUT_MS = 12000;
-  
+  const GATEWAY_TIMEOUT_MS = 60000; // 60s for payment gateway to load after user confirms
+
   function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   function waitForElement(selector, fallbacks = [], textMatch = '', timeoutMs = TIMEOUT_MS) {
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Timeout waiting for: " + selector)), timeoutMs);
-      
+      const timeout = setTimeout(() => reject(new Error("Timeout: " + (textMatch || selector))), timeoutMs);
       function check() {
         let el = document.querySelector(selector);
         if (!el) {
@@ -18,44 +18,30 @@ export const automationScript = `
             if (el) break;
           }
         }
-        
         if (el && textMatch) {
-          if (!el.textContent.includes(textMatch) && !el.innerText.includes(textMatch)) {
-            el = null;
-          }
+          const text = (el.textContent || el.innerText || '');
+          if (!text.includes(textMatch)) el = null;
         }
-        
         if (!el && textMatch) {
           const tag = selector.split('[')[0] || '*';
           const allEls = document.querySelectorAll(tag);
           for (let e of Array.from(allEls)) {
-            if ((e.textContent || '').includes(textMatch)) {
-              el = e;
-              break;
-            }
+            if ((e.textContent || '').includes(textMatch)) { el = e; break; }
           }
         }
-
-        if (el) {
-          clearTimeout(timeout);
-          resolve(el);
-        } else {
-          requestAnimationFrame(check);
-        }
+        if (el) { clearTimeout(timeout); resolve(el); }
+        else requestAnimationFrame(check);
       }
-      
       check();
     });
   }
 
-  // Fill an Angular reactive form input properly
+  // Angular-compatible input fill
   function fillInput(input, value) {
-    // Focus first
     input.focus();
     input.dispatchEvent(new Event('focus', { bubbles: true }));
-    // Set native value via Object.getOwnPropertyDescriptor trick for Angular
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    nativeInputValueSetter.call(input, value);
+    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    nativeSetter.call(input, value);
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
     input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
@@ -64,178 +50,206 @@ export const automationScript = `
   }
 
   async function fillCANumber(caNumber) {
-    try {
-      const input = await waitForElement('input[formcontrolname="accno"]', ['input[id^=mat-input-0]']);
-      fillInput(input, caNumber);
-      return true;
-    } catch (e) {
-      throw new Error("CA Number field not found");
-    }
+    const input = await waitForElement('input[formcontrolname="accno"]', ['input[id^=mat-input-0]']);
+    fillInput(input, caNumber);
   }
 
   async function clickSearch() {
-    try {
-      await wait(500);
-      const btn = await waitForElement('button[type="submit"]', [], 'Search');
-      btn.click();
-      return true;
-    } catch (e) {
-      throw new Error("Search button not found");
-    }
+    await wait(500);
+    const btn = await waitForElement('button[type="submit"]', [], 'Search');
+    btn.click();
   }
 
   async function waitForConsumer() {
-    try {
-      // Wait for mobile field to appear - signals consumer details loaded
-      // Uses correct formcontrolname="mobile" (not mobileNo)
-      await waitForElement('input[formcontrolname="mobile"]', [
-        'input[placeholder="Mobile Number"]',
-        'input[maxlength="10"]'
-      ], '', 15000);
-      await wait(500); // let page settle
-      return true;
-    } catch (e) {
-      throw new Error("Consumer details did not load. Please check the CA Number.");
-    }
+    await waitForElement('input[formcontrolname="mobile"]', [
+      'input[placeholder="Mobile Number"]',
+      'input[maxlength="10"]'
+    ], '', 15000);
+    await wait(600);
   }
 
   async function fillMobile(mobile) {
-    try {
-      // Correct selector: formcontrolname="mobile" (confirmed from HTML)
-      const input = await waitForElement('input[formcontrolname="mobile"]', [
-        'input[placeholder="Mobile Number"]',
-        'input[maxlength="10"]'
-      ]);
-      fillInput(input, mobile);
-      return true;
-    } catch (e) {
-      throw new Error("Mobile Number field not found");
-    }
+    const input = await waitForElement('input[formcontrolname="mobile"]', [
+      'input[placeholder="Mobile Number"]',
+      'input[maxlength="10"]'
+    ]);
+    fillInput(input, mobile);
   }
 
   async function selectAmount(amount) {
-    // Try preset amount buttons first (e.g. ₹500, ₹1000)
+    // Try preset amount buttons (e.g. ₹500, ₹1000)
     try {
       const btn = await waitForElement('button', [], '₹' + amount, 3000);
-      if (btn) { btn.click(); return true; }
-    } catch (e) { /* no preset button, try input */ }
-
+      btn.click(); return;
+    } catch(e) {}
     // Try custom amount input
     try {
       const input = await waitForElement(
         'input[formcontrolname="payAmount"]',
-        ['input[placeholder*="Amount"]', 'input[placeholder*="amount"]'],
-        '', 3000
+        ['input[placeholder*="Amount"]'], '', 3000
       );
       fillInput(input, amount);
-      return true;
-    } catch (e2) {
-      throw new Error("Could not set amount: " + e2.message);
+    } catch(e) {
+      throw new Error("Could not set amount");
     }
   }
 
-  async function waitForUserAmount(timeoutSeconds) {
-    // If no amount configured, wait for user to manually fill it
-    // We wait up to timeoutSeconds for the Pay Now button to become enabled
-    return new Promise((resolve) => {
-      const deadline = Date.now() + (timeoutSeconds * 1000);
+  // If no amount set, wait up to 10s for user to pick one (Pay Now becomes enabled)
+  async function waitForUserAmount() {
+    return new Promise(resolve => {
+      const deadline = Date.now() + 10000;
       function check() {
         const payBtn = Array.from(document.querySelectorAll('button')).find(b =>
           b.textContent && b.textContent.trim().includes('Pay Now') && !b.disabled
         );
-        if (payBtn || Date.now() >= deadline) {
-          resolve();
-        } else {
-          setTimeout(check, 500);
-        }
+        if (payBtn || Date.now() >= deadline) resolve();
+        else setTimeout(check, 500);
       }
       check();
     });
   }
 
-  async function selectGateway(gateway) {
-    if (!gateway) return true;
-    try {
-      // Try mat-radio-button labels
-      const labels = document.querySelectorAll('mat-radio-button label, .mat-radio-label');
-      for (let label of Array.from(labels)) {
-        if ((label.textContent || '').includes(gateway)) {
-          label.click();
-          return true;
-        }
-      }
-      // Fallback: generic label search
-      const label = await waitForElement('label', [], gateway, 3000);
-      if (label) {
-        label.click();
-        const input = label.querySelector('input[type="radio"]');
-        if (input) { input.checked = true; input.click(); }
-      }
-      return true;
-    } catch (e) {
-      console.warn("Gateway not found, continuing with default");
-      return true;
-    }
-  }
-
   async function clickPayNow() {
-    try {
-      const btn = await waitForElement('button', [], 'Pay Now');
-      btn.click();
-      return true;
-    } catch (e) {
-      throw new Error("Pay Now button not found");
-    }
+    const btn = await waitForElement('button', [], 'Pay Now');
+    btn.click();
   }
 
-  async function confirmRecharge() {
+  // ── WAIT FOR USER to click Yes on confirmation modal ──────────────────────
+  // We detect the modal by its Yes button (btn-danger), then wait for it to
+  // disappear — meaning the user clicked Yes and the gateway is loading.
+  async function waitForUserConfirmation() {
+    // 1. Wait for confirmation modal to appear
     try {
-      await wait(800); // give dialog time to animate
-      const btn = await waitForElement('button', ['.mat-dialog-actions button', '.mat-dialog-container button'], 'YES');
-      btn.click();
-      return true;
-    } catch (e) {
-      // Confirmation may not always appear
-      console.warn("Confirmation popup not found, continuing");
-      return true;
+      await waitForElement('button.btn-danger', [], 'Yes', 10000);
+      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Opening payment' }, '*');
+    } catch(e) {
+      // Modal may not appear or already dismissed
+      return;
     }
+    // 2. Wait for modal to disappear (user clicked Yes or No)
+    return new Promise(resolve => {
+      const deadline = Date.now() + 60000; // wait up to 60s
+      function check() {
+        const modal = document.querySelector('button.btn-danger');
+        if (!modal || Date.now() >= deadline) resolve();
+        else setTimeout(check, 300);
+      }
+      check();
+    });
   }
 
+  // ── PAYMENT GATEWAY (Juspay) ──────────────────────────────────────────────
+  // Wait for the Juspay gateway iframe/page to load (UPI tab visible)
+  async function waitForPaymentGateway() {
+    // The gateway renders in an iframe. We poll for the UPI tab element.
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Payment gateway did not load")), GATEWAY_TIMEOUT_MS);
+      function findUpiTab(doc) {
+        // Try testid attribute
+        let el = doc.querySelector('[testid="nvb_upi"]');
+        if (el) return el;
+        // Fallback: search article tags for "UPI" text
+        const articles = doc.querySelectorAll('article');
+        for (let a of Array.from(articles)) {
+          if ((a.textContent || '').trim() === 'UPI') return a.closest('[testid]') || a;
+        }
+        return null;
+      }
+
+      function check() {
+        // Check main document
+        let el = findUpiTab(document);
+        if (el) { clearTimeout(timeout); resolve(el); return; }
+        // Check all iframes
+        const iframes = document.querySelectorAll('iframe');
+        for (let frame of Array.from(iframes)) {
+          try {
+            const doc = frame.contentDocument || frame.contentWindow.document;
+            if (doc) {
+              el = findUpiTab(doc);
+              if (el) { clearTimeout(timeout); resolve(el); return; }
+            }
+          } catch(e) { /* cross-origin iframe, skip */ }
+        }
+        setTimeout(check, 500);
+      }
+      check();
+    });
+  }
+
+  async function clickUPI(upiEl) {
+    // Click the UPI tab itself or its closest clickable parent
+    const tab = upiEl.closest('[tabindex]') || upiEl.closest('[role="tab"]') || upiEl;
+    tab.click();
+    await wait(1200); // wait for UPI panel to render
+  }
+
+  async function clickGenerateQR(doc = document) {
+    // Try testid first
+    let btn = doc.querySelector('[testid="msg_text"]');
+    if (!btn) {
+      // Fallback: find element with "Generate QR Code" text
+      const all = doc.querySelectorAll('div, article, button, span');
+      for (let el of Array.from(all)) {
+        if ((el.textContent || '').trim() === 'Generate QR Code') { btn = el; break; }
+      }
+    }
+    if (btn) {
+      // Click the closest clickable parent
+      const clickable = btn.closest('.linearLayout') || btn.closest('button') || btn;
+      clickable.click();
+      return true;
+    }
+    // Also search iframes
+    const iframes = doc.querySelectorAll('iframe');
+    for (let frame of Array.from(iframes)) {
+      try {
+        const fdoc = frame.contentDocument || frame.contentWindow.document;
+        if (fdoc && await clickGenerateQR(fdoc)) return true;
+      } catch(e) {}
+    }
+    throw new Error("Generate QR Code button not found");
+  }
+
+  // ── MAIN ──────────────────────────────────────────────────────────────────
   window.startSbpdclAutomation = async function(config) {
     try {
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Filling CA Number' }, '*');
       await fillCANumber(config.caNumber);
-      
+
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Searching' }, '*');
       await clickSearch();
-      
+
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Loading consumer' }, '*');
       await waitForConsumer();
-      
+
       if (config.mobileNumber) {
         window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Filling mobile' }, '*');
         await fillMobile(config.mobileNumber);
       }
-      
+
+      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting amount' }, '*');
       if (config.amount) {
-        window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting amount' }, '*');
         await selectAmount(config.amount);
       } else {
-        // No amount configured — wait up to 10s for user to select manually
-        window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting amount' }, '*');
-        await waitForUserAmount(10);
+        await waitForUserAmount(); // wait up to 10s for user
       }
-      
-      if (config.gateway) {
-        window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting gateway' }, '*');
-        await selectGateway(config.gateway);
-      }
-      
+
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Opening payment' }, '*');
       await clickPayNow();
-      
-      await confirmRecharge();
-      
+
+      // Wait for user to tap Yes on confirmation popup
+      await waitForUserConfirmation();
+
+      // Wait for Juspay payment gateway to load
+      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting gateway' }, '*');
+      const upiEl = await waitForPaymentGateway();
+      await clickUPI(upiEl);
+
+      // Click Generate QR Code
+      await wait(800);
+      await clickGenerateQR();
+
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Done' }, '*');
     } catch (error) {
       window.postMessage({ type: 'SBPDCL_ERROR', error: error.message }, '*');
