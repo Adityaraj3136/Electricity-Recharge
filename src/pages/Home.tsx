@@ -36,103 +36,11 @@ const getAvatarGradient = (name: string) =>
 // ─── App Logo SVG ─────────────────────────────────────────────────────────
 const AppLogo = ({ className = "" }: { className?: string }) => (
   <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
-    <text x="10" y="66" fill="white" fontSize="42" fontWeight="900" fontFamily="system-ui, -apple-system, sans-serif" letterSpacing="-1">SB</text>
-    <path d="M72 26 L42 62 H69 L66 86 L96 50 H69 Z" fill="#FDE047" />
+    <path d="M55 15 L25 55 H55 L50 85 L80 45 H50 Z" fill="#FDE047" />
   </svg>
 );
 
-// ─── Inline SVG hero illustration ─────────────────────────────────────────
-const HeroIllustration = () => (
-  <svg viewBox="0 0 340 220" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-    {/* Sky */}
-    <rect width="340" height="220" fill="url(#skyGrad)" rx="12"/>
-    <defs>
-      <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#dbeafe"/>
-        <stop offset="100%" stopColor="#eff6ff"/>
-      </linearGradient>
-    </defs>
-    {/* Sun */}
-    <circle cx="290" cy="38" r="26" fill="#fbbf24" opacity="0.9"/>
-    <circle cx="290" cy="38" r="32" fill="#fde68a" opacity="0.35"/>
-    <circle cx="290" cy="38" r="38" fill="#fef3c7" opacity="0.2"/>
-    {/* Clouds */}
-    <ellipse cx="60" cy="30" rx="30" ry="14" fill="white" opacity="0.85"/>
-    <ellipse cx="82" cy="24" rx="22" ry="13" fill="white" opacity="0.9"/>
-    <ellipse cx="44" cy="26" rx="18" ry="11" fill="white" opacity="0.75"/>
-    <ellipse cx="180" cy="20" rx="22" ry="10" fill="white" opacity="0.7"/>
-    <ellipse cx="198" cy="15" rx="16" ry="9" fill="white" opacity="0.8"/>
-    {/* Ground */}
-    <rect x="0" y="175" width="340" height="45" fill="#bbf7d0" rx="4"/>
-    <rect x="0" y="185" width="340" height="35" fill="#86efac" rx="4"/>
-    {/* Power Tower */}
-    <g transform="translate(22,60)">
-      {/* Tower body */}
-      <polygon points="20,0 30,0 38,110 12,110" fill="#64748b" opacity="0.9"/>
-      <polygon points="23,3 27,3 34,108 16,108" fill="#94a3b8" opacity="0.6"/>
-      {/* Cross arms */}
-      <rect x="-10" y="20" width="70" height="6" rx="3" fill="#475569"/>
-      <rect x="-5" y="45" width="60" height="5" rx="2.5" fill="#475569"/>
-      <rect x="0" y="70" width="50" height="4" rx="2" fill="#475569"/>
-      {/* Insulators */}
-      <circle cx="-10" cy="23" r="4" fill="#e2e8f0"/>
-      <circle cx="60" cy="23" r="4" fill="#e2e8f0"/>
-      <circle cx="-5" cy="47" r="3.5" fill="#e2e8f0"/>
-      <circle cx="55" cy="47" r="3.5" fill="#e2e8f0"/>
-      {/* Base */}
-      <rect x="16" y="110" width="18" height="8" rx="2" fill="#334155"/>
-    </g>
-    {/* Power lines */}
-    <path d="M12 83 Q140 100 200 78" stroke="#64748b" strokeWidth="1.5" fill="none" opacity="0.6"/>
-    <path d="M77 83 Q160 95 200 80" stroke="#64748b" strokeWidth="1.5" fill="none" opacity="0.6"/>
-    {/* House */}
-    <g transform="translate(175,70)">
-      {/* Roof */}
-      <polygon points="0,55 75,55 75,0 37.5,-35 0,0" fill="#2563eb"/>
-      <polygon points="5,50 70,50 70,2 37.5,-30 5,2" fill="#3b82f6"/>
-      {/* Solar panels on roof */}
-      <rect x="18" y="10" width="16" height="10" rx="2" fill="#0f172a" opacity="0.85"/>
-      <rect x="36" y="10" width="16" height="10" rx="2" fill="#0f172a" opacity="0.85"/>
-      <rect x="18" y="22" width="16" height="10" rx="2" fill="#0f172a" opacity="0.85"/>
-      <rect x="36" y="22" width="16" height="10" rx="2" fill="#0f172a" opacity="0.85"/>
-      <line x1="18" y1="15" x2="34" y2="15" stroke="#1e40af" strokeWidth="0.5"/>
-      <line x1="36" y1="15" x2="52" y2="15" stroke="#1e40af" strokeWidth="0.5"/>
-      {/* Walls */}
-      <rect x="0" y="55" width="75" height="50" fill="#f1f5f9"/>
-      <rect x="2" y="57" width="71" height="46" fill="#f8fafc"/>
-      {/* Door */}
-      <rect x="28" y="80" width="19" height="25" rx="2" fill="#2563eb" opacity="0.8"/>
-      <circle cx="44" cy="93" r="1.5" fill="#fbbf24"/>
-      {/* Windows */}
-      <rect x="6" y="62" width="16" height="14" rx="2" fill="#bfdbfe"/>
-      <line x1="14" y1="62" x2="14" y2="76" stroke="#93c5fd" strokeWidth="0.8"/>
-      <line x1="6" y1="69" x2="22" y2="69" stroke="#93c5fd" strokeWidth="0.8"/>
-      <rect x="53" y="62" width="16" height="14" rx="2" fill="#bfdbfe"/>
-      <line x1="61" y1="62" x2="61" y2="76" stroke="#93c5fd" strokeWidth="0.8"/>
-      <line x1="53" y1="69" x2="69" y2="69" stroke="#93c5fd" strokeWidth="0.8"/>
-    </g>
-    {/* Trees */}
-    <g transform="translate(155,120)">
-      <rect x="7" y="30" width="6" height="20" fill="#92400e"/>
-      <ellipse cx="10" cy="25" rx="13" ry="18" fill="#16a34a"/>
-      <ellipse cx="10" cy="20" rx="10" ry="14" fill="#22c55e"/>
-    </g>
-    <g transform="translate(268,115)">
-      <rect x="7" y="30" width="6" height="22" fill="#92400e"/>
-      <ellipse cx="10" cy="24" rx="15" ry="20" fill="#15803d"/>
-      <ellipse cx="10" cy="18" rx="11" ry="15" fill="#16a34a"/>
-    </g>
-    <g transform="translate(142,130)">
-      <rect x="5" y="20" width="4" height="14" fill="#92400e"/>
-      <ellipse cx="7" cy="16" rx="9" ry="12" fill="#22c55e"/>
-    </g>
-    {/* Lightning bolt accent */}
-    <g transform="translate(118,85)">
-      <circle cx="12" cy="12" r="14" fill="#fbbf24" opacity="0.18"/>
-      <polygon points="14,2 7,13 12,13 10,22 17,11 12,11" fill="#fbbf24"/>
-    </g>
-  </svg>
-);
+
 
 // ─── Component ─────────────────────────────────────────────────────────────
 export function Home() {
@@ -620,10 +528,10 @@ export function Home() {
           </button>
           <button
             onClick={() => { resetForm(); setIsAddOpen(true); }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-full text-sm font-semibold hover:bg-primary-700 transition-all shadow-md shadow-primary-500/30 active:scale-95"
+            className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all shadow-md shadow-green-500/30 active:scale-95"
+            title={t.home.addMeter}
           >
-            <Plus size={15} />
-            {lang === 'en' ? 'Add Meter' : 'मीटर जोड़ें'}
+            <Plus size={20} strokeWidth={3} />
           </button>
         </div>
       </nav>
@@ -691,8 +599,8 @@ export function Home() {
           </div>
 
           {/* Right — illustration */}
-          <div className="flex-shrink-0 w-full max-w-xs md:max-w-sm lg:max-w-md">
-            <HeroIllustration />
+          <div className="flex-shrink-0 w-full md:w-1/2 lg:w-[55%]">
+            <img src="/hero.jpg" alt="Bijli Bill Assan" className="w-full h-auto rounded-3xl shadow-[0_10px_40px_-10px_rgba(37,99,235,0.3)] object-cover border border-white/20" />
           </div>
         </div>
       </section>
@@ -715,9 +623,10 @@ export function Home() {
               </div>
               <button
                 onClick={() => { resetForm(); setIsAddOpen(true); }}
-                className="flex items-center gap-1.5 bg-primary-600 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-md shadow-primary-500/25 active:scale-95 transition-all"
+                className="p-2 bg-green-500 text-white rounded-full shadow-md shadow-green-500/25 active:scale-95 transition-all hover:bg-green-600"
+                title={t.home.addMeter}
               >
-                <Plus size={15} /> {lang === 'en' ? 'Add' : 'जोड़ें'}
+                <Plus size={18} strokeWidth={3} />
               </button>
             </div>
 
@@ -730,9 +639,10 @@ export function Home() {
                 <p className={`text-sm mb-5 ${textSecondary}`}>{t.home.noMetersHint}</p>
                 <button
                   onClick={() => { resetForm(); setIsAddOpen(true); }}
-                  className="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-full font-semibold text-sm shadow-lg shadow-primary-500/30 active:scale-95 transition-all hover:bg-primary-700"
+                  className="p-4 bg-green-500 text-white rounded-full shadow-lg shadow-green-500/30 active:scale-95 transition-all hover:bg-green-600"
+                  title={t.home.addMeter}
                 >
-                  <Plus size={16} /> {t.home.addMeter}
+                  <Plus size={24} strokeWidth={3} />
                 </button>
               </div>
             ) : (
@@ -846,9 +756,10 @@ export function Home() {
               <p className={`text-sm mb-4 ${textSecondary}`}>{t.home.noMetersHint}</p>
               <button
                 onClick={() => { resetForm(); setIsAddOpen(true); }}
-                className="inline-flex items-center gap-2 bg-primary-600 text-white px-5 py-2.5 rounded-full font-semibold text-sm shadow-lg shadow-primary-500/30 active:scale-95 transition-all hover:bg-primary-700"
+                className="p-4 bg-green-500 text-white rounded-full shadow-lg shadow-green-500/30 active:scale-95 transition-all hover:bg-green-600"
+                title={t.home.addMeter}
               >
-                <Plus size={16} /> {t.home.addMeter}
+                <Plus size={24} strokeWidth={3} />
               </button>
             </div>
           ) : (
@@ -931,12 +842,14 @@ export function Home() {
                 </div>
               ))}
 
-              {/* Add new card */}
               <button
                 onClick={() => { resetForm(); setIsAddOpen(true); }}
-                className={`hidden md:flex rounded-2xl border-2 border-dashed min-h-[160px] items-center justify-center gap-2 text-sm font-semibold transition-all ${isDark ? 'border-[#253350] text-gray-500 hover:border-primary-500 hover:text-primary-400' : 'border-gray-200 text-gray-400 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50/50'}`}
+                className={`hidden md:flex rounded-2xl border-2 border-dashed min-h-[160px] items-center justify-center transition-all ${isDark ? 'border-[#253350] bg-[#1c2a42]/50 hover:border-green-500 hover:bg-[#253350]/50' : 'border-gray-200 bg-gray-50/50 hover:border-green-500 hover:bg-green-50/50'}`}
+                title={t.home.addMeter}
               >
-                <Plus size={18} /> {lang === 'en' ? 'Add Meter' : 'मीटर जोड़ें'}
+                <div className="w-12 h-12 rounded-full bg-green-500 text-white flex items-center justify-center shadow-md">
+                  <Plus size={24} strokeWidth={3} />
+                </div>
               </button>
             </div>
           )}
@@ -1078,9 +991,10 @@ export function Home() {
             <div className="relative -mt-8 flex justify-center">
               <button
                 onClick={() => { resetForm(); setIsAddOpen(true); }}
-                className="w-16 h-16 bg-primary-600 hover:bg-primary-700 text-white rounded-full flex items-center justify-center shadow-lg shadow-primary-500/40 active:scale-90 transition-all border-[6px] border-white dark:border-[#162033] z-50"
+                className="w-16 h-16 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/40 active:scale-90 transition-all border-[6px] border-white dark:border-[#162033] z-50"
+                title={t.home.addMeter}
               >
-                <AppLogo className="w-12 h-12 bg-transparent" />
+                <Plus size={26} strokeWidth={3} />
               </button>
             </div>
           )}
