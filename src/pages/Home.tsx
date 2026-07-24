@@ -84,6 +84,27 @@ export function Home() {
     }, [refreshConsumers]),
   });
 
+  // Clear action menu when switching tabs
+  useEffect(() => {
+    setActionMenuId(null);
+  }, [activeTab]);
+
+  // Global click outside to close action menu
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.action-menu-container') && !target.closest('.action-menu-button')) {
+        setActionMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
+
   // Inject automation into desktop iframe when consumer is set
   useEffect(() => {
     if (!iframeConsumer) return;
@@ -511,12 +532,12 @@ export function Home() {
   const syncAllMeters = async () => {
     if (consumers.length === 0 || isSyncing) return;
     setIsSyncing(true);
-    showToast('Syncing meters in background...', 'info');
+    showToast('Fetching balances in background...', 'info');
     for (const consumer of consumers) {
       await fetchBalanceSilently(consumer);
     }
     setIsSyncing(false);
-    showToast('Sync complete');
+    showToast('Fetch complete');
   };
 
   const handleQuickAction = (actionFn: (consumer: Consumer) => void) => {
@@ -727,7 +748,7 @@ export function Home() {
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold rounded-full text-xs active:scale-95 disabled:opacity-50 transition-all"
                 >
                   <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
-                  {isSyncing ? 'Syncing...' : 'Sync All'}
+                  {isSyncing ? 'Fetching...' : 'Fetch Balances'}
                 </button>
                 <button
                 onClick={() => { resetForm(); setIsAddOpen(true); }}
@@ -792,12 +813,12 @@ export function Home() {
                       <div className="relative flex-shrink-0">
                         <button
                           onClick={() => setActionMenuId(actionMenuId === consumer.id ? null : consumer.id)}
-                          className={`p-2 rounded-full transition-colors ${isDark ? 'text-gray-400 hover:text-gray-200 hover:bg-[#253350]' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                          className={`action-menu-button p-2 rounded-full transition-colors ${isDark ? 'text-gray-400 hover:text-gray-200 hover:bg-[#253350]' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
                         >
                           <MoreVertical size={18} />
                         </button>
                         {actionMenuId === consumer.id && (
-                          <div className={`absolute right-0 top-full mt-1 w-44 rounded-xl shadow-xl border py-1.5 z-30 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
+                          <div className={`action-menu-container absolute right-0 top-full mt-1 w-44 rounded-xl shadow-xl border py-1.5 z-30 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
                             <button
                               onClick={() => {
                                 setEditingConsumer(consumer);
@@ -861,7 +882,7 @@ export function Home() {
                 className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold rounded-full text-xs hover:bg-blue-100 disabled:opacity-50 transition-all"
               >
                 <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
-                {isSyncing ? 'Syncing...' : 'Sync All'}
+                {isSyncing ? 'Fetching...' : 'Fetch Balances'}
               </button>
               <button
                 onClick={() => { setActiveTab('meters'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
@@ -921,12 +942,12 @@ export function Home() {
                     <div className="relative flex-shrink-0">
                       <button
                         onClick={() => setActionMenuId(actionMenuId === consumer.id ? null : consumer.id)}
-                        className={`p-1.5 rounded-full transition-colors ${isDark ? 'text-gray-400 hover:text-gray-200 hover:bg-[#253350]' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                        className={`action-menu-button p-1.5 rounded-full transition-colors ${isDark ? 'text-gray-400 hover:text-gray-200 hover:bg-[#253350]' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
                       >
                         <MoreVertical size={18} />
                       </button>
                       {actionMenuId === consumer.id && (
-                        <div className={`absolute right-0 top-full mt-1 w-44 rounded-xl shadow-xl border py-1.5 z-30 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
+                        <div className={`action-menu-container absolute right-0 top-full mt-1 w-44 rounded-xl shadow-xl border py-1.5 z-30 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
                           <button
                             onClick={() => { 
                               setEditingConsumer(consumer); 
