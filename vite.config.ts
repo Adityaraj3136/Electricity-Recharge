@@ -33,5 +33,6 @@ export default defineConfig({
       }
     })
   ],
-  base: '/Electricity-Recharge/', // GitHub Pages repo name
+  // Use '/' for Android/Capacitor builds, '/Electricity-Recharge/' for GitHub Pages
+  base: process.env.VITE_BASE_URL ?? '/',
 })

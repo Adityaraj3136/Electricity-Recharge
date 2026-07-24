@@ -28,6 +28,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_BASE_URL: /Electricity-Recharge/
 
       - name: Add 404.html for SPA routing
         run: cp dist/index.html dist/404.html
