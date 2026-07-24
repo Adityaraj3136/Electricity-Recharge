@@ -338,17 +338,18 @@ export const automationScript = `
         amispVendor: getTdValue(['AMISP Vendor'])
       };
 
+      window.__balanceResult = details;
+
       if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cordova_iab) {
         window.webkit.messageHandlers.cordova_iab.postMessage(JSON.stringify({
           type: 'BALANCE_DETAILS',
           details
         }));
-      } else {
-        // Fallback for regular web / older Android where executeScript callback is used
-        return details;
       }
+      return details;
 
     } catch (error) {
+      window.__balanceError = error.message;
       if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cordova_iab) {
         window.webkit.messageHandlers.cordova_iab.postMessage(JSON.stringify({
           type: 'BALANCE_ERROR',

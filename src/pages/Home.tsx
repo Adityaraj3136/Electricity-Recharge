@@ -243,11 +243,39 @@ export function Home() {
             } catch (e) {}
           });
           let balanceScriptInjected = false;
+          let pollInterval: any;
           browser.addEventListener('loadstop', () => {
             if (balanceScriptInjected) return;
             balanceScriptInjected = true;
             browser.executeScript({ code: automationScript });
-            setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.fetchSbpdclBalance==='function') window.fetchSbpdclBalance('${consumer.caNumber}'); },1500);` }), 500);
+            
+            setTimeout(() => {
+              browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.fetchSbpdclBalance==='function') window.fetchSbpdclBalance('${consumer.caNumber}'); },1500);` });
+              
+              // Fallback polling mechanism
+              pollInterval = setInterval(() => {
+                browser.executeScript({ code: `JSON.stringify({ result: window.__balanceResult, error: window.__balanceError })` }, (res: any) => {
+                  try {
+                    const data = JSON.parse(res[0]);
+                    if (data.result) {
+                      setBalanceDetails(data.result);
+                      setIsBalanceLoading(false);
+                      clearInterval(pollInterval);
+                      browser.close();
+                    } else if (data.error) {
+                      showToast(`Error: ${data.error}`, 'error');
+                      setIsBalanceOpen(false);
+                      clearInterval(pollInterval);
+                      browser.close();
+                    }
+                  } catch (e) {}
+                });
+              }, 2000);
+            }, 500);
+          });
+          
+          browser.addEventListener('exit', () => {
+            if (pollInterval) clearInterval(pollInterval);
           });
         } else { showToast(t.toast.browserError, 'error'); setIsBalanceOpen(false); }
       } else { showToast(t.toast.balanceOnly, 'error'); }
