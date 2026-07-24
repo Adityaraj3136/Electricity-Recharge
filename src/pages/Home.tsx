@@ -91,19 +91,17 @@ export function Home() {
   };
 
   const handleRecharge = (consumer: Consumer) => {
-    // Mobile Web Flow: Copy CA Number & Open Portal
+    // 1. Open SBPDCL portal immediately in a new tab to bypass mobile popup blockers
+    window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
+    
+    // 2. Copy CA Number to clipboard
     navigator.clipboard.writeText(consumer.caNumber).then(() => {
       setToastMessage(`CA Number copied! Please paste it on the website.`);
-      
-      // Hide toast after 3 seconds
       setTimeout(() => setToastMessage(null), 4000);
-      
-      // Open SBPDCL portal in a new tab
-      window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
     }).catch(err => {
       console.error('Failed to copy', err);
-      // Fallback if clipboard fails
-      window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
+      // Fallback alert if clipboard fails
+      alert('Could not copy automatically. Your CA Number is: ' + consumer.caNumber);
     });
   };
 
