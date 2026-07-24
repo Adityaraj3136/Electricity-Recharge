@@ -282,7 +282,7 @@ export function Home() {
       </header>
 
       {/* ─── MAIN CONTENT ─── */}
-      <main className="flex-1 px-4 sm:px-5 pb-28 max-w-lg mx-auto w-full -mt-2">
+      <main className="flex-1 px-4 sm:px-5 pt-2 pb-28 max-w-lg mx-auto w-full">
 
         {/* How it works — only when no consumers */}
         {consumers.length === 0 && (
