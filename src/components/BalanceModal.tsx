@@ -101,3 +101,4 @@ export function BalanceModal({ isOpen, onClose, details, isLoading }: BalanceMod
     </Modal>
   );
 }
+

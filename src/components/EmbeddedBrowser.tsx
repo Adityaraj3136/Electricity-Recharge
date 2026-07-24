@@ -198,3 +198,4 @@ export function EmbeddedBrowser({ consumer, onClose }: EmbeddedBrowserProps) {
     </div>
   );
 }
+

@@ -78,3 +78,4 @@ export function RechargeProgressModal({ isOpen, onClose, progress }: RechargePro
     </Modal>
   );
 }
+

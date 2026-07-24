@@ -32,7 +32,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white font-sans">{title}</h2>
             <button 
               onClick={onClose}
-              className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-full transition-colors active:scale-95"
+              className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-50 hover:bg-gray-100 dark:bg-[#1c2a42] dark:hover:bg-slate-700 rounded-full transition-colors active:scale-95"
             >
               <X size={20} />
             </button>
@@ -45,3 +45,4 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     </div>
   );
 }
+

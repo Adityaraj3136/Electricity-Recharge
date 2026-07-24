@@ -214,7 +214,7 @@ export function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300">
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-[#0e1726] font-sans transition-colors duration-300">
 
       {/* ─── HERO HEADER ─── */}
       <header className="relative overflow-hidden hero-mesh text-white pt-safe">
@@ -281,7 +281,7 @@ export function Home() {
         </div>
 
         {/* Curved bottom edge */}
-        <div className="h-6 bg-slate-50 dark:bg-slate-950 rounded-t-[2rem] -mb-px relative z-10" />
+        <div className="h-6 bg-slate-50 dark:bg-[#0e1726] rounded-t-[2rem] -mb-px relative z-10" />
       </header>
 
       {/* ─── MAIN CONTENT ─── */}
@@ -313,13 +313,13 @@ export function Home() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-bold text-gray-800 dark:text-gray-200">{t.home.savedMeters}</h2>
-            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium bg-gray-100 dark:bg-slate-800 rounded-full px-2.5 py-1">
+            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium bg-gray-100 dark:bg-[#1c2a42] rounded-full px-2.5 py-1">
               {consumers.length} {lang === 'en' ? 'saved' : 'सहेजे'}
             </span>
           </div>
 
           {consumers.length === 0 ? (
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 relative overflow-hidden">
+            <div className="bg-white dark:bg-[#1c2a42] rounded-3xl shadow-xl p-6 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary-50 dark:bg-primary-900/20 rounded-bl-full -z-10" />
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t.home.noMeters}</h2>
               <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm">
@@ -336,9 +336,9 @@ export function Home() {
           ) : (
             <div className="flex flex-col gap-4">
               {consumers.map((consumer) => (
-                <div key={consumer.id} className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden group relative">
+                <div key={consumer.id} className="bg-white dark:bg-[#1c2a42] rounded-3xl shadow-sm border border-gray-100 dark:border-[#253350] overflow-hidden group relative">
                   {/* Card header */}
-                  <div className="p-4 sm:p-5 pb-3 sm:pb-4 flex items-center justify-between border-b border-gray-100 dark:border-slate-700/50">
+                  <div className="p-4 sm:p-5 pb-3 sm:pb-4 flex items-center justify-between border-b border-gray-100 dark:border-[#253350]/50">
                     <div className="flex items-center gap-3 min-w-0">
                       {/* Avatar */}
                       <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl ${getAvatarColor(consumer.name)} flex items-center justify-center text-white font-bold text-xl flex-shrink-0 shadow-md`}>
@@ -368,7 +368,7 @@ export function Home() {
                           <MoreVertical size={20} />
                         </button>
                         {actionMenuId === consumer.id && (
-                          <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 py-2 z-20 animate-in fade-in zoom-in duration-200">
+                          <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1c2a42] rounded-xl shadow-lg border border-gray-100 dark:border-[#253350] py-2 z-20 animate-in fade-in zoom-in duration-200">
                             <button
                               onClick={() => {
                                 setEditingConsumer(consumer);
@@ -414,7 +414,7 @@ export function Home() {
                     </button>
                     <button
                       onClick={() => handleCheckBalance(consumer)}
-                      className="flex items-center justify-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-200 rounded-xl h-11 sm:h-12 font-semibold text-sm hover:border-primary-300 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-slate-700 active:scale-95 transition-all"
+                      className="flex items-center justify-center gap-2 bg-white dark:bg-[#1c2a42] border border-gray-200 dark:border-[#253350] text-gray-700 dark:text-gray-200 rounded-xl h-11 sm:h-12 font-semibold text-sm hover:border-primary-300 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-slate-700 active:scale-95 transition-all"
                     >
                       <Search size={15} className="text-primary-500" />
                       {t.home.checkBalance}
@@ -564,3 +564,4 @@ export function Home() {
     </div>
   );
 }
+

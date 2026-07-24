@@ -134,7 +134,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         {/* Appearance */}
         <section>
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Appearance & Security</h3>
-          <div className="bg-gray-50 dark:bg-slate-800 rounded-xl p-2 space-y-1">
+          <div className="bg-gray-50 dark:bg-[#1c2a42] rounded-xl p-2 space-y-1">
             <button 
               onClick={toggleDarkMode}
               className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
@@ -171,7 +171,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         {/* Reminders */}
         <section>
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Reminders</h3>
-          <div className="bg-gray-50 dark:bg-slate-800 rounded-xl p-2 space-y-2">
+          <div className="bg-gray-50 dark:bg-[#1c2a42] rounded-xl p-2 space-y-2">
             <button 
               onClick={toggleReminder}
               className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
@@ -191,7 +191,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <select 
                   value={settings.reminderDay}
                   onChange={changeReminderDay}
-                  className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200 rounded-lg p-2 text-sm outline-none"
+                  className="bg-white dark:bg-[#253350] border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-200 rounded-lg p-2 text-sm outline-none"
                 >
                   {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
                     <option key={day} value={day}>{day}</option>
@@ -205,7 +205,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         {/* Data & Backup */}
         <section>
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Data & Backup</h3>
-          <div className="bg-gray-50 dark:bg-slate-800 rounded-xl p-2 space-y-1">
+          <div className="bg-gray-50 dark:bg-[#1c2a42] rounded-xl p-2 space-y-1">
             <button 
               onClick={handleExport}
               className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
@@ -239,7 +239,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         {/* About & Security */}
         <section>
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">About App</h3>
-          <div className="bg-gray-50 dark:bg-slate-800 rounded-xl p-4 text-sm text-gray-600 dark:text-gray-400 space-y-4">
+          <div className="bg-gray-50 dark:bg-[#1c2a42] rounded-xl p-4 text-sm text-gray-600 dark:text-gray-400 space-y-4">
             <div className="flex gap-3">
               <Shield className="text-green-600 shrink-0" size={20} />
               <div>
@@ -261,3 +261,4 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     </Modal>
   );
 }
+

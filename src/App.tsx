@@ -67,7 +67,7 @@ function AppInner() {
   }
 
   return (
-    <div className="antialiased min-h-screen max-w-[100vw] overflow-x-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+    <div className="antialiased min-h-screen max-w-[100vw] overflow-x-hidden bg-slate-50 dark:bg-[#0e1726] transition-colors duration-300">
       <Home />
     </div>
   );

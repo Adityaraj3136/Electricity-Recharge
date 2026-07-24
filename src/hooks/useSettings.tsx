@@ -14,17 +14,40 @@ const defaultSettings: AppSettings = {
   reminderDay: 1,
 };
 
+// Single canonical key — migrates from old 'app_settings' key if needed
 const SETTINGS_KEY = 'sbpdcl_settings';
 
 function loadSettings(): AppSettings {
   try {
+    // Migrate from the old key name used in a prior version
+    const old = localStorage.getItem('app_settings');
+    if (old) {
+      const parsed = JSON.parse(old);
+      localStorage.setItem(SETTINGS_KEY, old);
+      localStorage.removeItem('app_settings');
+      return { ...defaultSettings, ...parsed };
+    }
+
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
       return { ...defaultSettings, ...JSON.parse(stored) };
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Failed to load settings:', e);
+  }
   return defaultSettings;
 }
+
+function applyDarkMode(enabled: boolean) {
+  if (enabled) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+}
+
+// Apply immediately on module load (before React mounts) to avoid flash
+applyDarkMode(loadSettings().darkMode);
 
 interface SettingsContextValue {
   settings: AppSettings;
@@ -36,13 +59,9 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
 
-  // Apply dark mode to <html> whenever it changes
+  // Keep <html> class in sync whenever darkMode changes
   useEffect(() => {
-    if (settings.darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    applyDarkMode(settings.darkMode);
   }, [settings.darkMode]);
 
   const updateSettings = (updates: Partial<AppSettings>) => {
