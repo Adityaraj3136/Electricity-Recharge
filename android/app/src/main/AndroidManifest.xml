@@ -31,8 +31,46 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!--
+          BroadcastReceiver required by @capacitor/local-notifications to re-schedule
+          notifications after device reboot (Android 10+)
+        -->
+        <receiver
+            android:name="com.capacitorjs.plugins.localnotifications.LocalNotificationRestoreReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 
-    <!-- Permissions -->
+    <!-- ═══════════════════════════════════════════════════
+         PERMISSIONS
+         ═══════════════════════════════════════════════════ -->
+
+    <!-- Internet -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Receive boot broadcast to restore scheduled notifications -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- POST_NOTIFICATIONS — required on Android 13+ (API 33+)
+         Ignored on older versions. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Exact alarms — SCHEDULE_EXACT_ALARM was the old permission (API 31-32).
+         USE_EXACT_ALARM is the new one (API 33+, no runtime prompt needed).
+         We declare both so the same APK works on Android 10-16. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!-- Keeps CPU awake briefly to deliver notifications while the device is idle -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Vibration for notification alerts -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
 </manifest>
