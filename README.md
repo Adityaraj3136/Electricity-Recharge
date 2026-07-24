@@ -1,32 +1,29 @@
-# React + TypeScript + Vite
+# SBPDCL Family Recharge
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A Progressive Web App (PWA) designed to help you quickly manage and recharge your family's prepaid electricity meters from the official SBPDCL website. 
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Store Multiple Consumers**: Save CA Numbers for home, shop, parents, etc. locally on your device.
+- **Material Design**: A beautiful, minimal, and responsive user interface built with Tailwind CSS v4.
+- **Privacy-First**: No payment details, passwords, or cards are ever requested or stored. All consumer data remains on your device (in localStorage).
+- **Automation Ready**: Comes with a generated script to automate filling in the official SBPDCL website to get you to the payment page faster.
+- **Backup & Restore**: Easily export and import your saved consumer list.
+- **Dark Mode**: fully supported and toggleable.
 
-## React Compiler
+## Setup & Deployment
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+This app is built using React + Vite + TypeScript.
 
-## Expanding the Oxlint configuration
+```bash
+# Install dependencies
+npm install
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+# Run dev server
+npm run dev
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# Build for production
+npm run build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+To deploy this project to **GitHub Pages**, configure your repository settings to serve the static files from the `main` branch or a `gh-pages` branch, depending on your CI/CD setup. The project is already configured with a `vite-plugin-pwa` for immediate use as an installable app.
