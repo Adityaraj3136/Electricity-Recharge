@@ -257,10 +257,44 @@ export const automationScript = `
       // Wait for Juspay payment gateway to load
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting gateway' }, '*');
       const upiEl = await waitForPaymentGateway();
+
+      // Check if "Pay by any UPI app" is already visible on screen
+      // If yes — gateway is ready for user to pay, stop script here
+      function hasPayByUpiApp(doc) {
+        const allText = doc.querySelectorAll('div, article, button, span, p');
+        for (let el of Array.from(allText)) {
+          const t = (el.textContent || '').trim().toLowerCase();
+          if (t.includes('pay by any upi app') || t === 'pay by upi app') return true;
+        }
+        // Also check iframes
+        const iframes = doc.querySelectorAll('iframe');
+        for (let frame of Array.from(iframes)) {
+          try {
+            const fdoc = frame.contentDocument || frame.contentWindow.document;
+            if (fdoc && hasPayByUpiApp(fdoc)) return true;
+          } catch(e) {}
+        }
+        return false;
+      }
+
+      if (hasPayByUpiApp(document)) {
+        // UPI payment options already showing — hand off to user
+        window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Done' }, '*');
+        return;
+      }
+
+      // Otherwise click UPI tab and Generate QR
       await clickUPI(upiEl);
 
+      // After clicking UPI, check again for "Pay by any UPI app"
+      await wait(1000);
+      if (hasPayByUpiApp(document)) {
+        window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Done' }, '*');
+        return;
+      }
+
       // Click Generate QR Code
-      await wait(800);
+      await wait(500);
       await clickGenerateQR();
 
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Done' }, '*');
