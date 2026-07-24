@@ -152,6 +152,7 @@ export function Home() {
   const [isBalanceOpen, setIsBalanceOpen] = useState(false);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [balanceDetails, setBalanceDetails] = useState<BalanceDetails | null>(null);
+  const [activeTab, setActiveTab] = useState<'home' | 'meters'>('home');
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToastMessage(msg);
@@ -543,6 +544,129 @@ export function Home() {
       ════════════════════════════════════════════════════════ */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-6 pb-28 md:pb-10 space-y-8">
 
+        {/* ════ METERS TAB VIEW (mobile only) ════ */}
+        {activeTab === 'meters' && (
+          <section className="md:hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className={`text-xl font-bold ${textPrimary}`}>{lang === 'en' ? 'My Meters' : 'मेरे मीटर'}</h2>
+                <p className={`text-xs mt-0.5 ${textSecondary}`}>
+                  {consumers.length} {lang === 'en' ? `meter${consumers.length !== 1 ? 's' : ''} saved` : 'मीटर सेव'}
+                </p>
+              </div>
+              <button
+                onClick={() => { resetForm(); setIsAddOpen(true); }}
+                className="flex items-center gap-1.5 bg-primary-600 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-md shadow-primary-500/25 active:scale-95 transition-all"
+              >
+                <Plus size={15} /> {lang === 'en' ? 'Add' : 'जोड़ें'}
+              </button>
+            </div>
+
+            {consumers.length === 0 ? (
+              <div className={`rounded-2xl border p-8 text-center ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100 shadow-sm'}`}>
+                <div className="w-16 h-16 bg-primary-50 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Bolt size={28} className="text-primary-600 fill-primary-100" />
+                </div>
+                <h3 className={`font-bold text-base mb-2 ${textPrimary}`}>{t.home.noMeters}</h3>
+                <p className={`text-sm mb-5 ${textSecondary}`}>{t.home.noMetersHint}</p>
+                <button
+                  onClick={() => { resetForm(); setIsAddOpen(true); }}
+                  className="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-full font-semibold text-sm shadow-lg shadow-primary-500/30 active:scale-95 transition-all hover:bg-primary-700"
+                >
+                  <Plus size={16} /> {t.home.addMeter}
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {consumers.map((consumer) => (
+                  <div key={consumer.id} className={`rounded-2xl border overflow-hidden shadow-sm ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
+                    {/* Card top */}
+                    <div className={`px-4 pt-4 pb-3 flex items-start justify-between border-b ${isDark ? 'border-[#253350]/60' : 'border-gray-50'}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getAvatarGradient(consumer.name)} flex items-center justify-center text-white font-bold text-xl shadow-md flex-shrink-0`}>
+                          {consumer.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 className={`font-bold text-base leading-tight ${textPrimary}`}>{consumer.name}</h3>
+                          <p className={`text-xs font-mono tracking-wide mt-0.5 ${textSecondary}`}>CA: {consumer.caNumber}</p>
+                          {consumer.mobileNumber && (
+                            <p className={`text-xs mt-0.5 ${textSecondary}`}>📱 {consumer.mobileNumber}</p>
+                          )}
+                          {consumer.preferredAmount && (
+                            <span className="inline-block mt-1 text-[10px] font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 border border-primary-100 dark:border-primary-800 rounded-full px-2 py-0.5">
+                              ₹{consumer.preferredAmount} default
+                            </span>
+                          )}
+                          {consumer.preferredGateway && (
+                            <span className="inline-block mt-1 ml-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-full px-2 py-0.5">
+                              {consumer.preferredGateway}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {/* 3-dot menu */}
+                      <div className="relative flex-shrink-0">
+                        <button
+                          onClick={() => setActionMenuId(actionMenuId === consumer.id ? null : consumer.id)}
+                          className={`p-2 rounded-full transition-colors ${isDark ? 'text-gray-400 hover:text-gray-200 hover:bg-[#253350]' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+                        {actionMenuId === consumer.id && (
+                          <div className={`absolute right-0 top-full mt-1 w-44 rounded-xl shadow-xl border py-1.5 z-30 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
+                            <button
+                              onClick={() => {
+                                setEditingConsumer(consumer);
+                                setName(consumer.name);
+                                setCaNumber(consumer.caNumber);
+                                setMobile(consumer.mobileNumber || '');
+                                setAmount(consumer.preferredAmount || '');
+                                setGateway(consumer.preferredGateway || '');
+                                setIsAddOpen(true);
+                                setActionMenuId(null);
+                              }}
+                              className={`w-full px-4 py-2.5 text-left text-sm flex items-center gap-2.5 transition-colors ${isDark ? 'text-gray-200 hover:bg-[#253350]' : 'text-gray-700 hover:bg-gray-50'}`}
+                            >
+                              <Edit2 size={14} /> {t.delete.edit}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(consumer.id)}
+                              className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              <Trash2 size={14} /> {t.delete.delete}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {/* Action buttons */}
+                    <div className="p-3 flex flex-col gap-2">
+                      <button
+                        onClick={() => handleRecharge(consumer)}
+                        className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl h-11 font-semibold text-sm shadow-md shadow-primary-500/25 active:scale-95 transition-all"
+                      >
+                        <Zap size={16} className="text-yellow-300 fill-yellow-300" />
+                        {t.home.rechargeNow}
+                      </button>
+                      <button
+                        onClick={() => handleCheckBalance(consumer)}
+                        className={`w-full flex items-center justify-center gap-2 rounded-xl h-10 font-semibold text-sm border active:scale-95 transition-all ${isDark ? 'bg-[#1c2a42] border-[#253350] text-gray-200 hover:border-primary-500 hover:text-primary-400' : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50'}`}
+                      >
+                        <Search size={14} className="text-primary-500" />
+                        {t.home.checkBalance}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ════ HOME TAB SECTIONS (always on desktop, conditional on mobile) ════ */}
+        <div className={activeTab === 'meters' ? 'hidden md:block' : ''}>
+
         {/* ── Saved Meters ──────────────────────────────────── */}
         <section id="meters-section">
           <div className="flex items-center justify-between mb-4">
@@ -741,6 +865,7 @@ export function Home() {
         <p className={`text-[10px] text-center leading-relaxed pb-2 ${textSecondary}`}>
           {t.home.disclaimer}
         </p>
+        </div> {/* end home tab wrapper */}
       </main>
 
       {/* ════════════════════════════════════════════════════════
@@ -798,32 +923,47 @@ export function Home() {
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-end justify-around px-2 pt-2 pb-2">
           {[
-            { icon: <HomeIcon size={22} />, label: lang === 'en' ? 'Home' : 'होम', active: true, onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-            { icon: <List size={22} />, label: lang === 'en' ? 'Meters' : 'मीटर', active: false, onClick: () => { const el = document.getElementById('meters-section'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
+            { icon: <HomeIcon size={22} />, label: lang === 'en' ? 'Home' : 'होम', tab: 'home' as const },
+            { icon: <List size={22} />, label: lang === 'en' ? 'Meters' : 'मीटर', tab: 'meters' as const },
           ].map((item) => (
             <button
               key={item.label}
-              onClick={item.onClick}
-              className={`flex flex-col items-center gap-1 px-4 py-1 rounded-2xl transition-all ${item.active ? 'text-primary-600 font-bold' : `${textSecondary} hover:text-primary-500`}`}
+              onClick={() => { setActiveTab(item.tab); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              className={`flex flex-col items-center gap-1 px-4 py-1 rounded-2xl transition-all ${
+                activeTab === item.tab ? 'text-primary-600 font-bold' : `${textSecondary} hover:text-primary-500`
+              }`}
             >
               {item.icon}
               <span className="text-[11px] leading-none">{item.label}</span>
             </button>
           ))}
 
-          {/* Center FAB */}
-          <div className="relative -mt-8 flex justify-center">
-            <button
-              onClick={() => { resetForm(); setIsAddOpen(true); }}
-              className="w-16 h-16 bg-primary-600 hover:bg-primary-700 text-white rounded-full flex items-center justify-center shadow-lg shadow-primary-500/40 active:scale-90 transition-all border-[6px] border-white dark:border-[#162033] z-50"
-            >
-              <AppLogo className="w-12 h-12 bg-transparent" />
-            </button>
-          </div>
+          {/* Floating Add Meter button — visible on Meters tab */}
+          {activeTab === 'meters' && (
+            <div className="relative -mt-8 flex justify-center">
+              <button
+                onClick={() => { resetForm(); setIsAddOpen(true); }}
+                className="w-16 h-16 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/40 active:scale-90 transition-all border-[6px] border-white dark:border-[#162033] z-50"
+                title={lang === 'en' ? 'Add Meter' : 'मीटर जोड़ें'}
+              >
+                <Plus size={26} strokeWidth={3} />
+              </button>
+            </div>
+          )}
+          {activeTab === 'home' && (
+            <div className="relative -mt-8 flex justify-center">
+              <button
+                onClick={() => { resetForm(); setIsAddOpen(true); }}
+                className="w-16 h-16 bg-primary-600 hover:bg-primary-700 text-white rounded-full flex items-center justify-center shadow-lg shadow-primary-500/40 active:scale-90 transition-all border-[6px] border-white dark:border-[#162033] z-50"
+              >
+                <AppLogo className="w-12 h-12 bg-transparent" />
+              </button>
+            </div>
+          )}
 
           {[
-            { icon: <HelpCircle size={22} />, label: lang === 'en' ? 'Help' : 'सहायता', active: false, onClick: () => setIsHelpOpen(true) },
-            { icon: <User size={22} />, label: lang === 'en' ? 'Profile' : 'प्रोफ़ाइल', active: false, onClick: () => setIsSettingsOpen(true) },
+            { icon: <HelpCircle size={22} />, label: lang === 'en' ? 'Help' : 'सहायता', onClick: () => setIsHelpOpen(true) },
+            { icon: <User size={22} />, label: lang === 'en' ? 'Profile' : 'प्रोफ़ाइल', onClick: () => setIsSettingsOpen(true) },
           ].map((item) => (
             <button
               key={item.label}
@@ -836,6 +976,7 @@ export function Home() {
           ))}
         </div>
       </nav>
+
 
       {/* ════════════════════════════════════════════════════════
           ADD / EDIT MODAL
