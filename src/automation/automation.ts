@@ -50,7 +50,13 @@ export const automationScript = `
   }
 
   async function fillCANumber(caNumber) {
-    const input = await waitForElement('input[formcontrolname="accno"]', ['input[id^=mat-input-0]']);
+    const input = await waitForElement('input[formcontrolname="accno"]', [
+      'input[placeholder*="CA Number"]',
+      'input[placeholder*="CA Num"]',
+      'input[name="accno"]',
+      'input[id^=mat-input-]',
+      'input.mat-input-element'
+    ], '', 15000);
     fillInput(input, caNumber);
   }
 
@@ -329,9 +335,9 @@ export const automationScript = `
       await fillCANumber(caNumber);
       await clickSearch();
       
-      // Wait for table to appear
-      await waitForElement('table.table', ['tbody']);
-      await wait(1000); // let Angular finish rendering
+      // Wait for table to appear (increase timeout to 30s for slow networks)
+      await waitForElement('table.table', ['.table-sales table', 'table'], '', 30000);
+      await wait(1500); // let Angular finish rendering and populate dynamic data
 
       const getTdValue = (labelMatches) => {
         const tds = Array.from(document.querySelectorAll('td.text strong, td.text'));
