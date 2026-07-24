@@ -775,7 +775,7 @@ export function Home() {
                       </div>
                       <div>
                         <h3 className={`font-bold text-base leading-tight ${textPrimary}`}>{consumer.name}</h3>
-                        <p className={`text-xs font-mono tracking-wide mt-0.5 ${textSecondary}`}>CA: {consumer.caNumber}</p>
+                        <p className={`text-xs font-medium mt-0.5 ${textSecondary}`}>CA: {consumer.caNumber}</p>
                         {consumer.mobileNumber && (
                           <p className={`text-xs mt-0.5 ${textSecondary}`}>📱 {consumer.mobileNumber}</p>
                         )}
