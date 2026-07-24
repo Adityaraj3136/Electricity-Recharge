@@ -91,17 +91,50 @@ export function Home() {
   };
 
   const handleRecharge = (consumer: Consumer) => {
-    // 1. Open SBPDCL portal immediately in a new tab to bypass mobile popup blockers
-    window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
-    
-    // 2. Copy CA Number to clipboard
-    navigator.clipboard.writeText(consumer.caNumber).then(() => {
-      setToastMessage(`CA Number copied! Please paste it on the website.`);
-      setTimeout(() => setToastMessage(null), 4000);
-    }).catch(err => {
-      console.error('Failed to copy', err);
-      // Fallback alert if clipboard fails
-      alert('Could not copy automatically. Your CA Number is: ' + consumer.caNumber);
+    import('@capacitor/core').then(({ Capacitor }) => {
+      if (Capacitor.isNativePlatform()) {
+        setToastMessage(`Starting automated recharge for ${consumer.name}...`);
+        setTimeout(() => setToastMessage(null), 3000);
+
+        // Type safety workaround for cordova plugins
+        const win = window as any;
+        if (win.cordova && win.cordova.InAppBrowser) {
+          const browser = win.cordova.InAppBrowser.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank', 'location=yes,clearcache=yes,clearsessioncache=yes');
+          
+          browser.addEventListener('loadstop', () => {
+            const script = `
+              setTimeout(() => {
+                const input = document.querySelector('input[formcontrolname="accno"]') || document.querySelector('input[id^="mat-input"]');
+                if (input) {
+                  input.value = '${consumer.caNumber}';
+                  input.dispatchEvent(new Event('input', { bubbles: true }));
+                  input.dispatchEvent(new Event('change', { bubbles: true }));
+                  
+                  setTimeout(() => {
+                    const btn = document.querySelector('button[type="submit"]') || Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('Search'));
+                    if (btn) btn.click();
+                  }, 800);
+                }
+              }, 1500);
+            `;
+            browser.executeScript({ code: script });
+          });
+        } else {
+           // Fallback if plugin isn't ready
+           window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
+        }
+      } else {
+        // Web Flow: Open portal immediately & Copy CA Number
+        window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
+        
+        navigator.clipboard.writeText(consumer.caNumber).then(() => {
+          setToastMessage(`CA Number copied! Please paste it on the website.`);
+          setTimeout(() => setToastMessage(null), 4000);
+        }).catch(err => {
+          console.error('Failed to copy', err);
+          alert('Could not copy automatically. Your CA Number is: ' + consumer.caNumber);
+        });
+      }
     });
   };
 
