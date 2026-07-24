@@ -9,7 +9,7 @@ import { Modal } from '../components/Modal';
 import type { Consumer, BalanceDetails } from '../types';
 import {
   Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search,
-  Bolt, Globe, Moon, Sun, Home as HomeIcon, BarChart2,
+  Bolt, Globe, Moon, Sun, Home as HomeIcon, BarChart2, List,
   HelpCircle, User, Shield, ArrowRight, BookOpen, CreditCard, Hexagon
 } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
@@ -544,7 +544,7 @@ export function Home() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-6 pb-28 md:pb-10 space-y-8">
 
         {/* ── Saved Meters ──────────────────────────────────── */}
-        <section>
+        <section id="meters-section">
           <div className="flex items-center justify-between mb-4">
             <h2 className={`text-lg font-bold ${textPrimary}`}>{t.home.savedMeters}</h2>
             <button
@@ -798,11 +798,12 @@ export function Home() {
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-end justify-around px-2 pt-2 pb-2">
           {[
-            { icon: <HomeIcon size={22} />, label: lang === 'en' ? 'Home' : 'होम', active: true },
+            { icon: <HomeIcon size={22} />, label: lang === 'en' ? 'Home' : 'होम', active: true, onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+            { icon: <List size={22} />, label: lang === 'en' ? 'Meters' : 'मीटर', active: false, onClick: () => { const el = document.getElementById('meters-section'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } },
           ].map((item) => (
             <button
               key={item.label}
-              onClick={() => !item.active && showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!')}
+              onClick={item.onClick}
               className={`flex flex-col items-center gap-1 px-4 py-1 rounded-2xl transition-all ${item.active ? 'text-primary-600 font-bold' : `${textSecondary} hover:text-primary-500`}`}
             >
               {item.icon}
