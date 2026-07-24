@@ -1,21 +1,24 @@
 import { useState } from 'react';
 import { useConsumers } from '../hooks/useConsumers';
+import { useLang } from '../hooks/useLang';
 import { Button } from '../components/Button';
 import { FAB } from '../components/FAB';
 import { TextField } from '../components/TextField';
 import { Select } from '../components/Select';
 import { Modal } from '../components/Modal';
 import type { Consumer, BalanceDetails } from '../types';
-import { Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search } from 'lucide-react';
+import { Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search, Wifi, Bolt, ChevronRight, Globe } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
 import { BalanceModal } from '../components/BalanceModal';
 import { automationScript } from '../automation/automation';
 
 export function Home() {
   const { consumers, addConsumer, updateConsumer, deleteConsumer } = useConsumers();
+  const { lang, t, toggleLang } = useLang();
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingConsumer, setEditingConsumer] = useState<Consumer | null>(null);
-  
+
   // Form State
   const [name, setName] = useState('');
   const [caNumber, setCaNumber] = useState('');
@@ -28,6 +31,7 @@ export function Home() {
 
   // Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -36,6 +40,19 @@ export function Home() {
   const [isBalanceOpen, setIsBalanceOpen] = useState(false);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [balanceDetails, setBalanceDetails] = useState<BalanceDetails | null>(null);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage(msg);
+    setToastType(type);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return t.greeting.morning;
+    if (hour < 18) return t.greeting.afternoon;
+    return t.greeting.evening;
+  };
 
   const resetForm = () => {
     setName('');
@@ -48,7 +65,6 @@ export function Home() {
 
   const handleSave = () => {
     if (!name || !caNumber) return;
-    
     const consumerData = {
       name,
       caNumber,
@@ -56,13 +72,11 @@ export function Home() {
       preferredAmount: amount,
       preferredGateway: gateway as any,
     };
-
     if (editingConsumer) {
       updateConsumer(editingConsumer.id, consumerData);
     } else {
       addConsumer(consumerData);
     }
-    
     setIsAddOpen(false);
     resetForm();
   };
@@ -79,7 +93,7 @@ export function Home() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm("Delete this consumer?")) {
+    if (window.confirm(t.delete.confirm)) {
       deleteConsumer(id);
     }
     setActionMenuId(null);
@@ -88,64 +102,46 @@ export function Home() {
   const handleRecharge = (consumer: Consumer) => {
     import('@capacitor/core').then(({ Capacitor }) => {
       if (Capacitor.isNativePlatform()) {
-        setToastMessage(`Starting automated recharge for ${consumer.name}...`);
-        setTimeout(() => setToastMessage(null), 3000);
-
-        // Type safety workaround for cordova plugins
+        showToast(`${t.toast.rechargeStart} ${consumer.name}...`);
         const win = window as any;
         if (win.cordova && win.cordova.InAppBrowser) {
           const browser = win.cordova.InAppBrowser.open(
             'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
             '_blank',
             [
-              'location=no',           // ← hides the URL bar completely
-              'toolbar=yes',           // keep toolbar for close button
-              'toolbarcolor=#3730a3',  // branded purple toolbar
+              'location=no',
+              'toolbar=yes',
+              'toolbarcolor=#7c3aed',
               'closebuttoncaption=✕ Close',
               'closebuttoncolor=#ffffff',
-              'navigationbuttoncolor=#ffffff',
-              'hidenavigationbuttons=yes', // hide back/forward (prevent navigation)
-              'hideurlbar=yes',        // extra safety for some Android builds
-              'zoom=no',               // prevent zoom (layout inspection)
+              'hidenavigationbuttons=yes',
+              'hideurlbar=yes',
+              'zoom=no',
               'clearcache=yes',
               'clearsessioncache=yes',
               'hardwareback=yes',
-              'allowInlineMediaPlayback=no',
             ].join(',')
           );
-          
           browser.addEventListener('loadstop', () => {
-            const script = `
+            browser.executeScript({ code: automationScript });
+            const runAuto = `
               setTimeout(() => {
-                const input = document.querySelector('input[formcontrolname="accno"]') || document.querySelector('input[id^="mat-input"]');
-                if (input) {
-                  input.value = '${consumer.caNumber}';
-                  input.dispatchEvent(new Event('input', { bubbles: true }));
-                  input.dispatchEvent(new Event('change', { bubbles: true }));
-                  
-                  setTimeout(() => {
-                    const btn = document.querySelector('button[type="submit"]') || Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('Search'));
-                    if (btn) btn.click();
-                  }, 800);
+                if (typeof window.runSbpdclAutomation === 'function') {
+                  window.runSbpdclAutomation('${consumer.caNumber}', '${consumer.mobileNumber || ''}', '${consumer.preferredAmount || ''}');
                 }
               }, 1500);
             `;
-            browser.executeScript({ code: script });
+            setTimeout(() => browser.executeScript({ code: runAuto }), 500);
           });
         } else {
-           // Fallback if plugin isn't ready
-           window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
+          window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
         }
       } else {
-        // Web Flow: Open portal immediately & Copy CA Number
         window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
-        
         navigator.clipboard.writeText(consumer.caNumber).then(() => {
-          setToastMessage(`CA Number copied! Please paste it on the website.`);
-          setTimeout(() => setToastMessage(null), 4000);
-        }).catch(err => {
-          console.error('Failed to copy', err);
-          alert('Could not copy automatically. Your CA Number is: ' + consumer.caNumber);
+          showToast(t.toast.copyCA);
+        }).catch(() => {
+          alert('CA Number: ' + consumer.caNumber);
         });
       }
     });
@@ -157,7 +153,6 @@ export function Home() {
         setIsBalanceOpen(true);
         setIsBalanceLoading(true);
         setBalanceDetails(null);
-
         const win = window as any;
         if (win.cordova && win.cordova.InAppBrowser) {
           const browser = win.cordova.InAppBrowser.open(
@@ -165,7 +160,6 @@ export function Home() {
             '_blank',
             'hidden=yes,location=no,clearcache=yes,clearsessioncache=yes'
           );
-          
           const messageListener = (event: any) => {
             try {
               const data = JSON.parse(event.data);
@@ -174,18 +168,15 @@ export function Home() {
                 setIsBalanceLoading(false);
                 browser.close();
               } else if (data.type === 'BALANCE_ERROR') {
-                setToastMessage(`Error: ${data.error}`);
+                showToast(`Error: ${data.error}`, 'error');
                 setIsBalanceOpen(false);
                 browser.close();
               }
             } catch (e) {}
           };
-
           browser.addEventListener('message', messageListener);
-
           browser.addEventListener('loadstop', () => {
             browser.executeScript({ code: automationScript });
-            
             const runFetch = `
               setTimeout(() => {
                 if (typeof window.fetchSbpdclBalance === 'function') {
@@ -193,212 +184,367 @@ export function Home() {
                 }
               }, 1500);
             `;
-            setTimeout(() => {
-               browser.executeScript({ code: runFetch });
-            }, 500);
+            setTimeout(() => browser.executeScript({ code: runFetch }), 500);
           });
         } else {
-          setToastMessage('InAppBrowser plugin is not available.');
+          showToast(t.toast.browserError, 'error');
           setIsBalanceOpen(false);
         }
       } else {
-        setToastMessage('Check Balance is only available in the mobile app.');
-        setTimeout(() => setToastMessage(null), 3000);
+        showToast(t.toast.balanceOnly, 'error');
       }
     });
   };
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 18) return 'Good Afternoon';
-    return 'Good Evening';
+
+  // Avatar background colors based on first letter
+  const avatarColors = [
+    'from-violet-500 to-purple-700',
+    'from-indigo-500 to-blue-700',
+    'from-rose-500 to-pink-700',
+    'from-amber-500 to-orange-600',
+    'from-teal-500 to-cyan-600',
+    'from-emerald-500 to-green-700',
+  ];
+  const getAvatarColor = (name: string) => {
+    const i = name.charCodeAt(0) % avatarColors.length;
+    return avatarColors[i];
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#f8f9fa] pb-24 font-sans">
-      {/* Header */}
-      <header className="hero-mesh text-white pt-14 pb-8 px-6 rounded-b-[2.5rem] shadow-[0_10px_40px_rgba(124,58,237,0.2)] relative overflow-hidden">
-        {/* Decorative background glow circles */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary-400/20 rounded-full blur-2xl -ml-12 -mb-12 pointer-events-none"></div>
-        
-        <div className="relative z-10 flex justify-between items-center mb-6">
-          <div>
-            <p className="text-primary-100 font-medium text-sm tracking-wide uppercase mb-1">{getGreeting()}</p>
-            <h1 className="text-3xl font-bold tracking-tight">Family Recharge</h1>
-          </div>
-          <button 
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-3 bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-full transition-all active:scale-95"
-          >
-            <Settings size={22} className="text-white" />
-          </button>
+    <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
+
+      {/* ─── HERO HEADER ─── */}
+      <header className="relative overflow-hidden hero-mesh text-white pt-safe">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-10 -right-10 w-56 h-56 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute top-8 right-16 w-20 h-20 rounded-full bg-purple-300/20 blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-40 h-40 rounded-full bg-indigo-400/20 blur-2xl" />
         </div>
+
+        <div className="relative z-10 px-5 pt-12 pb-6 max-w-lg mx-auto w-full">
+          {/* Top bar */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              {/* Logo pill */}
+              <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-2xl px-3 py-1.5">
+                <Bolt size={18} className="text-yellow-300 fill-yellow-300" />
+                <span className="text-white font-bold text-base tracking-tight">{t.appName}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Language toggle */}
+              <button
+                onClick={toggleLang}
+                className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-full px-3 py-1.5 transition-all active:scale-95"
+                aria-label="Toggle language"
+              >
+                <Globe size={14} className="text-white/80" />
+                <span className="text-white text-xs font-semibold tracking-wider uppercase">
+                  {lang === 'en' ? 'हिंदी' : 'EN'}
+                </span>
+              </button>
+              {/* Settings */}
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2.5 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-full transition-all active:scale-95"
+              >
+                <Settings size={18} className="text-white" />
+              </button>
+            </div>
+          </div>
+
+          {/* Greeting */}
+          <div className="mb-6">
+            <p className="text-purple-200 text-sm font-medium tracking-widest uppercase">{getGreeting()}</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mt-0.5 leading-tight">
+              {t.appTagline}
+            </h1>
+          </div>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { icon: <Bolt size={16} className="text-yellow-300 fill-yellow-300" />, label: lang === 'en' ? 'Instant' : 'तुरंत', value: lang === 'en' ? 'Recharge' : 'रिचार्ज' },
+              { icon: <Wifi size={16} className="text-cyan-300" />, label: lang === 'en' ? '100%' : '१००%', value: lang === 'en' ? 'Secure' : 'सुरक्षित' },
+              { icon: <Search size={16} className="text-green-300" />, label: lang === 'en' ? 'Live' : 'लाइव', value: lang === 'en' ? 'Balance' : 'बैलेंस' },
+            ].map((stat, i) => (
+              <div key={i} className="bg-white/10 backdrop-blur-sm rounded-2xl px-3 py-2.5 flex flex-col items-center text-center gap-1">
+                {stat.icon}
+                <span className="text-white font-bold text-sm leading-none">{stat.label}</span>
+                <span className="text-purple-200 text-xs leading-none">{stat.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Curved bottom edge */}
+        <div className="h-6 bg-slate-50 rounded-t-[2rem] -mb-px relative z-10" />
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 px-5 pt-8 max-w-md mx-auto w-full relative z-10 -mt-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-5 px-2">Your Consumers</h2>
-        
-        {/* Removed copied UI block */}
+      {/* ─── MAIN CONTENT ─── */}
+      <main className="flex-1 px-4 sm:px-5 pb-28 max-w-lg mx-auto w-full -mt-2">
 
-        <div className="space-y-4">
+        {/* How it works — only when no consumers */}
+        {consumers.length === 0 && (
+          <section className="mb-6">
+            <h2 className="text-base font-bold text-gray-700 mb-3">{t.home.statsTitle}</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { num: '1', title: t.home.step1Title, desc: t.home.step1Desc, color: 'bg-violet-50 border-violet-100' },
+                { num: '2', title: t.home.step2Title, desc: t.home.step2Desc, color: 'bg-indigo-50 border-indigo-100' },
+                { num: '3', title: t.home.step3Title, desc: t.home.step3Desc, color: 'bg-emerald-50 border-emerald-100' },
+              ].map((step) => (
+                <div key={step.num} className={`rounded-2xl border p-4 ${step.color}`}>
+                  <div className="w-7 h-7 premium-gradient rounded-full flex items-center justify-center text-white font-bold text-sm mb-2">
+                    {step.num}
+                  </div>
+                  <h3 className="font-semibold text-gray-900 text-sm mb-1">{step.title}</h3>
+                  <p className="text-gray-500 text-xs leading-relaxed">{step.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Saved Meters Section */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-bold text-gray-800">{t.home.savedMeters}</h2>
+            <span className="text-xs text-gray-400 font-medium bg-gray-100 rounded-full px-2.5 py-1">
+              {consumers.length} {lang === 'en' ? 'saved' : 'सहेजे'}
+            </span>
+          </div>
+
           {consumers.length === 0 ? (
-            <div className="text-center py-12 px-4">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Zap className="text-primary-600" size={32} />
+            <div className="text-center py-14 px-6 glass-card">
+              <div className="w-16 h-16 premium-gradient rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/30">
+                <Zap className="text-yellow-300 fill-yellow-300" size={28} />
               </div>
-              <p className="text-gray-500 font-medium mb-1">No consumers added yet</p>
-              <p className="text-gray-400 text-sm">Tap the + button to add your family members.</p>
+              <p className="text-gray-800 font-bold text-lg mb-2">{t.home.noMeters}</p>
+              <p className="text-gray-500 text-sm leading-relaxed max-w-xs mx-auto">{t.home.noMetersHint}</p>
+              <button
+                onClick={() => { resetForm(); setIsAddOpen(true); }}
+                className="mt-5 inline-flex items-center gap-2 premium-gradient text-white rounded-full px-5 py-2.5 font-semibold text-sm shadow-lg shadow-primary-500/30 active:scale-95 transition-all"
+              >
+                <Plus size={18} />
+                {t.home.addMeter}
+              </button>
             </div>
           ) : (
-            consumers.map(consumer => (
-              <div key={consumer.id} className="glass-card relative group interactive-scale overflow-hidden">
-                <div className="p-5 pb-4 flex items-center justify-between border-b border-gray-100/50">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full premium-gradient p-[2px]">
-                      <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-primary-600 font-bold text-lg">
+            <div className="flex flex-col gap-4">
+              {consumers.map((consumer) => (
+                <div key={consumer.id} className="glass-card overflow-hidden group relative">
+                  {/* Card header */}
+                  <div className="p-4 sm:p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Avatar */}
+                      <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${getAvatarColor(consumer.name)} flex items-center justify-center text-white font-bold text-xl flex-shrink-0 shadow-md`}>
                         {consumer.name.charAt(0).toUpperCase()}
                       </div>
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 text-[17px]">{consumer.name}</h3>
-                      <p className="text-sm text-gray-500 font-mono mt-0.5 tracking-wide">CA: {consumer.caNumber}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="relative">
-                    <button 
-                      onClick={() => setActionMenuId(actionMenuId === consumer.id ? null : consumer.id)}
-                      className="p-2 text-gray-400 hover:text-primary-600 rounded-full hover:bg-primary-50 transition-colors active:scale-90"
-                    >
-                      <MoreVertical size={20} />
-                    </button>
-                    
-                    {actionMenuId === consumer.id && (
-                      <div className="absolute right-0 top-full mt-1 w-36 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 py-2 z-20 animate-in fade-in zoom-in-95 origin-top-right">
-                        <button 
-                          onClick={() => openEdit(consumer)}
-                          className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary-600 flex items-center gap-3 transition-colors"
-                        >
-                          <Edit2 size={16} /> Edit
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(consumer.id)}
-                          className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
-                        >
-                          <Trash2 size={16} /> Delete
-                        </button>
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-gray-900 text-base sm:text-[17px] truncate">{consumer.name}</h3>
+                        <p className="text-xs sm:text-sm text-gray-500 font-mono tracking-wide">CA: {consumer.caNumber}</p>
+                        {consumer.mobileNumber && (
+                          <p className="text-xs text-gray-400 mt-0.5">📱 {consumer.mobileNumber}</p>
+                        )}
                       </div>
-                    )}
+                    </div>
+
+                    {/* Amount badge + menu */}
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                      {consumer.preferredAmount && (
+                        <span className="hidden sm:block text-xs font-bold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-2.5 py-1">
+                          ₹{consumer.preferredAmount}
+                        </span>
+                      )}
+                      <div className="relative">
+                        <button
+                          onClick={() => setActionMenuId(actionMenuId === consumer.id ? null : consumer.id)}
+                          className="p-2 text-gray-400 hover:text-primary-600 rounded-full hover:bg-primary-50 transition-colors active:scale-90"
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+                        {actionMenuId === consumer.id && (
+                          <div className="absolute right-0 top-full mt-1 w-36 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/60 py-1.5 z-20 animate-in fade-in zoom-in-95 origin-top-right">
+                            <button
+                              onClick={() => openEdit(consumer)}
+                              className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary-600 flex items-center gap-3 transition-colors"
+                            >
+                              <Edit2 size={15} /> {t.delete.edit}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(consumer.id)}
+                              className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                            >
+                              <Trash2 size={15} /> {t.delete.delete}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mobile amount badge */}
+                  {consumer.preferredAmount && (
+                    <div className="sm:hidden px-4 pb-1">
+                      <span className="text-xs font-bold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-2.5 py-0.5">
+                        Default: ₹{consumer.preferredAmount}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Divider */}
+                  <div className="mx-4 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+
+                  {/* Action buttons */}
+                  <div className="p-3 sm:p-4 grid grid-cols-2 gap-2.5">
+                    <button
+                      onClick={() => handleRecharge(consumer)}
+                      className="flex items-center justify-center gap-2 premium-gradient text-white rounded-xl h-11 sm:h-12 font-semibold text-sm shadow-md shadow-primary-500/25 hover:brightness-110 active:scale-95 transition-all"
+                    >
+                      <Zap size={16} className="text-yellow-300 fill-yellow-300" />
+                      {t.home.rechargeNow}
+                    </button>
+                    <button
+                      onClick={() => handleCheckBalance(consumer)}
+                      className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 rounded-xl h-11 sm:h-12 font-semibold text-sm hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 active:scale-95 transition-all"
+                    >
+                      <Search size={15} className="text-primary-500" />
+                      {t.home.checkBalance}
+                    </button>
                   </div>
                 </div>
-                <div className="px-5 py-4 flex flex-col gap-3 bg-gradient-to-b from-transparent to-white/40">
-                  <Button 
-                    fullWidth 
-                    onClick={() => handleRecharge(consumer)}
-                    className="gap-2 shadow-primary-500/20"
-                  >
-                    <Zap size={18} className="text-yellow-300 fill-yellow-300" />
-                    Recharge Now
-                  </Button>
-                  <Button 
-                    fullWidth 
-                    variant="secondary"
-                    onClick={() => handleCheckBalance(consumer)}
-                    className="gap-2 font-medium"
-                  >
-                    <Search size={18} className="text-primary-500" />
-                    Check Balance
-                  </Button>
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
-        </div>
+        </section>
+
+        {/* How it works — when there ARE consumers, shown at bottom */}
+        {consumers.length > 0 && (
+          <section className="mt-6 mb-2">
+            <div className="glass-card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-bold text-gray-700">{t.home.statsTitle}</h2>
+                <ChevronRight size={16} className="text-gray-400" />
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {[
+                  { icon: '⚡', label: t.home.step1Title },
+                  { icon: '🤖', label: t.home.step2Title },
+                  { icon: '📱', label: t.home.step3Title },
+                ].map((step, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1">
+                    <span className="text-xl">{step.icon}</span>
+                    <span className="text-xs text-gray-600 font-medium leading-tight">{step.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
       </main>
 
-      {/* Add Button */}
-      <FAB 
-        icon={<Plus size={24} />} 
-        onClick={() => {
-          resetForm();
-          setIsAddOpen(true);
-        }} 
+      {/* ─── FAB ─── */}
+      <FAB
+        icon={<Plus size={24} />}
+        onClick={() => { resetForm(); setIsAddOpen(true); }}
       />
 
-      {/* Add/Edit Modal */}
+      {/* ─── ADD / EDIT MODAL ─── */}
       <Modal
         isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
-        title={editingConsumer ? "Edit Consumer" : "Add Consumer"}
+        onClose={() => { setIsAddOpen(false); resetForm(); }}
+        title={editingConsumer ? t.form.editTitle : t.form.addTitle}
       >
-        <div className="space-y-4">
-          <TextField 
-            label="Name (e.g. Home, Shop, Parents)" 
+        <div className="flex flex-col gap-4">
+          {/* Form intro */}
+          <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-primary-50 to-indigo-50 rounded-xl border border-primary-100">
+            <div className="w-9 h-9 premium-gradient rounded-xl flex items-center justify-center flex-shrink-0">
+              <Bolt size={18} className="text-yellow-300 fill-yellow-300" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-primary-700 uppercase tracking-wide">SBPDCL Portal</p>
+              <p className="text-xs text-gray-500 leading-tight mt-0.5">
+                {lang === 'en'
+                  ? 'South Bihar Power Distribution Company'
+                  : 'दक्षिण बिहार विद्युत वितरण कंपनी'}
+              </p>
+            </div>
+          </div>
+
+          <TextField
+            label={t.form.labelName}
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="Home"
+            placeholder={t.form.placeholderName}
           />
-          <TextField 
-            label="CA Number" 
+          <TextField
+            label={t.form.labelCA}
             type="number"
             value={caNumber}
             onChange={e => setCaNumber(e.target.value)}
-            placeholder="23330014306"
+            placeholder={t.form.placeholderCA}
           />
-          <TextField 
-            label="Default Mobile Number (Optional)" 
-            type="tel"
-            value={mobile}
-            onChange={e => setMobile(e.target.value)}
-            placeholder="9999999999"
-          />
-          <TextField 
-            label="Default Amount (Optional)" 
-            type="number"
-            value={amount}
-            onChange={e => setAmount(e.target.value)}
-            placeholder="1000"
-          />
-          <Select 
-            label="Preferred Gateway (Optional)"
+
+          {/* 2-col for mobile/amount */}
+          <div className="grid grid-cols-2 gap-3">
+            <TextField
+              label={t.form.labelMobile}
+              type="tel"
+              value={mobile}
+              onChange={e => setMobile(e.target.value)}
+              placeholder={t.form.placeholderMobile}
+            />
+            <TextField
+              label={t.form.labelAmount}
+              type="number"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder={t.form.placeholderAmount}
+            />
+          </div>
+
+          <Select
+            label={t.form.labelGateway}
             value={gateway}
             onChange={e => setGateway(e.target.value)}
             options={[
               { value: 'Bank of Baroda', label: 'Bank of Baroda' },
               { value: 'Easebuzz', label: 'Easebuzz' },
-              { value: 'HDFC', label: 'HDFC' }
+              { value: 'HDFC', label: 'HDFC' },
             ]}
           />
-          <div className="pt-4">
+
+          <div className="pt-2">
             <Button fullWidth onClick={handleSave} disabled={!name || !caNumber}>
-              {editingConsumer ? "Save Changes" : "Add Consumer"}
+              {editingConsumer ? t.form.update : t.form.save}
             </Button>
           </div>
         </div>
       </Modal>
-      {/* Toast Notification */}
+
+      {/* ─── TOAST ─── */}
       {toastMessage && (
-        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-in fade-in slide-in-from-bottom-5">
-          <Zap size={20} className="text-yellow-400" />
+        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 z-50 animate-in fade-in slide-in-from-bottom-5 max-w-[90vw] ${
+          toastType === 'error'
+            ? 'bg-red-600 text-white'
+            : 'bg-gray-900 text-white'
+        }`}>
+          <span className="text-lg">{toastType === 'error' ? '⚠️' : '⚡'}</span>
           <p className="text-sm font-medium">{toastMessage}</p>
         </div>
       )}
 
-      {/* Settings Modal */}
+      {/* ─── SETTINGS MODAL ─── */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
 
-      {/* Balance Details Modal */}
+      {/* ─── BALANCE MODAL ─── */}
       <BalanceModal
         isOpen={isBalanceOpen}
-        onClose={() => {
-          setIsBalanceOpen(false);
-          setBalanceDetails(null);
-        }}
+        onClose={() => { setIsBalanceOpen(false); setBalanceDetails(null); }}
         details={balanceDetails}
         isLoading={isBalanceLoading}
       />
