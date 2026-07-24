@@ -243,32 +243,36 @@ export const automationScript = `
 
       // 2. Select Gateway (Compulsory to enable Pay Now)
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting Gateway' }, '*');
-      let targetImg = null;
+      // Wait for radio buttons to appear first
+      await wait(1000);
+      let radioInput = null;
       if (config.gateway) {
         let imgAltMatch = '';
-        if (config.gateway === 'Bank of Baroda') imgAltMatch = 'Bank Of Baroda';
-        else if (config.gateway === 'Federal Bank') imgAltMatch = 'Federal Bank';
-        else if (config.gateway === 'HDFC') imgAltMatch = 'Hdfc';
+        if (config.gateway === 'Bank of Baroda') imgAltMatch = 'baroda';
+        else if (config.gateway === 'Federal Bank') imgAltMatch = 'federal';
+        else if (config.gateway === 'HDFC') imgAltMatch = 'hdfc';
         
         if (imgAltMatch) {
           const allImgs = Array.from(document.querySelectorAll('mat-radio-button img'));
-          targetImg = allImgs.find(img => (img.alt || '').toLowerCase().includes(imgAltMatch.toLowerCase()));
+          const targetImg = allImgs.find(img => (img.alt || img.src || '').toLowerCase().includes(imgAltMatch));
+          if (targetImg) {
+            const radioBtn = targetImg.closest('mat-radio-button');
+            radioInput = radioBtn ? radioBtn.querySelector('input[type="radio"]') : null;
+          }
         }
       }
       
-      // Fallback: pick the first one if user didn't specify or it wasn't found
-      if (!targetImg) {
-        targetImg = document.querySelector('mat-radio-button img');
+      // Fallback: pick the first radio input
+      if (!radioInput) {
+        radioInput = document.querySelector('mat-radio-button input[type="radio"]');
       }
 
-      if (targetImg) {
-        const radioBtn = targetImg.closest('mat-radio-button');
-        if (radioBtn) {
-          // In Angular Material, clicking the label usually correctly triggers the radio
-          const label = radioBtn.querySelector('label') || radioBtn;
-          label.click();
-          await wait(800);
-        }
+      if (radioInput) {
+        // Directly click the hidden radio input — most reliable method for Angular Material
+        radioInput.click();
+        radioInput.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        radioInput.dispatchEvent(new Event('change', { bubbles: true }));
+        await wait(800);
       }
 
       // 3. Select Amount
@@ -345,18 +349,50 @@ export const automationScript = `
     try {
       await fillCANumber(caNumber);
       await clickSearch();
-      
-      // Wait for table to appear (increase timeout to 30s for slow networks)
-      await waitForElement('table.table', ['.table-sales table', 'table'], '', 30000);
-      await wait(1500); // let Angular finish rendering and populate dynamic data
 
+      // New approach: use MutationObserver + text scan instead of CSS selector
+      // The SBPDCL page renders data dynamically; we wait for 'CA Number' text to appear
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Timed out waiting for consumer data')), 35000);
+        
+        function checkForData() {
+          // Scan ALL text nodes on the page for 'CA Number'
+          const bodyText = document.body ? document.body.innerText || '' : '';
+          if (bodyText.includes('CA Number') || bodyText.includes('Consumer Number') || bodyText.includes('Available Balance')) {
+            clearTimeout(timeout);
+            resolve();
+            return true;
+          }
+          return false;
+        }
+
+        if (checkForData()) return;
+
+        // Use MutationObserver to detect when Angular renders the table
+        const observer = new MutationObserver(() => {
+          if (checkForData()) observer.disconnect();
+        });
+        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      });
+
+      await wait(1000); // let Angular finish all rendering
+
+      // Scrape using text-based td scanning (works regardless of CSS class names)
       const getTdValue = (labelMatches) => {
-        const tds = Array.from(document.querySelectorAll('td.text strong, td.text'));
-        for (let td of tds) {
-          const text = (td.textContent || '').trim().toLowerCase();
+        // Try all td elements, look for label in strong or td itself
+        const allTds = Array.from(document.querySelectorAll('td'));
+        for (let i = 0; i < allTds.length; i++) {
+          const td = allTds[i];
+          const text = (td.innerText || td.textContent || '').trim().toLowerCase();
           if (labelMatches.some(m => text.includes(m.toLowerCase()))) {
-            let next = td.closest('td').nextElementSibling;
-            return next ? (next.textContent || '').trim().replace(/picture_as_pdf/g, '').trim() : '';
+            // Value is in the next td sibling
+            const nextTd = allTds[i + 1];
+            if (nextTd) {
+              return (nextTd.innerText || nextTd.textContent || '')
+                .trim()
+                .replace(/picture_as_pdf/gi, '')
+                .trim();
+            }
           }
         }
         return '';
@@ -371,7 +407,7 @@ export const automationScript = `
         lastRechargeAmount: getTdValue(['Last Recharge Amount']),
         consumerType: getTdValue(['Consumer Type']),
         currentStatus: getTdValue(['Current Status']),
-        availableBalance: getTdValue(['Available Balance', 'Balance(Rs)']),
+        availableBalance: getTdValue(['Available Balance', 'Balance(Rs)', 'Available Balance(Rs)']),
         amispVendor: getTdValue(['AMISP Vendor'])
       };
 
