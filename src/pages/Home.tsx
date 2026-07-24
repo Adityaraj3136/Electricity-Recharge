@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useConsumers } from '../hooks/useConsumers';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -6,10 +6,10 @@ import { FAB } from '../components/FAB';
 import { TextField } from '../components/TextField';
 import { Select } from '../components/Select';
 import { Modal } from '../components/Modal';
-import type { Consumer, AutomationProgress } from '../types';
+import type { Consumer } from '../types';
 import { Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Check } from 'lucide-react';
-import { automationScript } from '../automation/automation';
-import { RechargeProgressModal } from '../components/RechargeProgressModal';
+// Removed unused automationScript import
+import { EmbeddedBrowser } from '../components/EmbeddedBrowser';
 import { SettingsModal } from '../components/SettingsModal';
 
 export function Home() {
@@ -27,40 +27,23 @@ export function Home() {
   // Action Menu State
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
 
-  // Script Copy State for Tampermonkey fallback
-  const [copied, setCopied] = useState(false);
+// Removed copied state as script copy handled in EmbeddedBrowser
+
+  // Embedded Browser State
+  const [embeddedConsumer, setEmbeddedConsumer] = useState<Consumer | null>(null);
 
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Progress Modal State
-  const [isProgressOpen, setIsProgressOpen] = useState(false);
-  const [progress, setProgress] = useState<AutomationProgress>({
-    currentStep: 'Opening website',
-    completedSteps: []
-  });
+  // Progress Modal State (removed, now handled by EmbeddedBrowser)
+  // const [isProgressOpen, setIsProgressOpen] = useState(false);
+  // const [progress, setProgress] = useState<AutomationProgress>({
+  //   currentStep: 'Opening website',
+  //   completedSteps: []
+  // });
 
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // Allow from any origin since SBPDCL is external
-      if (event.data?.type === 'SBPDCL_PROGRESS') {
-        setProgress(p => ({
-          currentStep: event.data.step,
-          completedSteps: p.currentStep && !p.completedSteps.includes(p.currentStep) 
-            ? [...p.completedSteps, p.currentStep] 
-            : p.completedSteps
-        }));
-      } else if (event.data?.type === 'SBPDCL_ERROR') {
-        setProgress(p => ({
-          ...p,
-          error: event.data.error
-        }));
-      }
-    };
 
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  // Removed message listener – progress now handled inside EmbeddedBrowser
 
   const resetForm = () => {
     setName('');
@@ -111,31 +94,8 @@ export function Home() {
   };
 
   const handleRecharge = (consumer: Consumer) => {
-    const config = {
-      caNumber: consumer.caNumber,
-      mobileNumber: consumer.mobileNumber,
-      amount: consumer.preferredAmount,
-      gateway: consumer.preferredGateway
-    };
-
-    // Construct the automation call string
-    const callString = `\nstartSbpdclAutomation(${JSON.stringify(config)});`;
-    
-    // Open the target website
-    setProgress({ currentStep: 'Opening website', completedSteps: [] });
-    setIsProgressOpen(true);
-    
-    // Slight delay to show modal
-    setTimeout(() => {
-      navigator.clipboard.writeText(automationScript + callString).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 3000);
-        window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
-      }).catch(() => {
-        // Fallback if clipboard fails
-        window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
-      });
-    }, 500);
+    // Set the selected consumer for embedded view
+    setEmbeddedConsumer(consumer);
   };
 
   return (
@@ -158,12 +118,7 @@ export function Home() {
       <main className="flex-1 px-4 pt-6 max-w-md mx-auto w-full">
         <h2 className="text-lg font-semibold text-gray-800 mb-4 px-2">Select Consumer</h2>
         
-        {copied && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl flex items-center gap-2 text-sm">
-            <Check size={18} className="text-green-600" />
-            Automation script copied to clipboard! Paste it in the browser console on the SBPDCL site.
-          </div>
-        )}
+        {/* Removed copied UI block */}
 
         <div className="space-y-4">
           {consumers.length === 0 ? (
@@ -291,17 +246,20 @@ export function Home() {
         </div>
       </Modal>
 
-      {/* Progress Modal */}
-      <RechargeProgressModal 
-        isOpen={isProgressOpen} 
-        onClose={() => setIsProgressOpen(false)} 
-        progress={progress} 
-      />
+// Removed Progress Modal – EmbeddedBrowser shows its own progress UI
+
+      {/* Embedded Browser */}
+      {embeddedConsumer && (
+        <EmbeddedBrowser
+          consumer={embeddedConsumer}
+          onClose={() => setEmbeddedConsumer(null)}
+        />
+      )}
 
       {/* Settings Modal */}
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );
