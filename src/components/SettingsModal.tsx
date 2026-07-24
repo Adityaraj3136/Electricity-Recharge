@@ -106,6 +106,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         await NativeBiometric.verifyIdentity({
           reason: 'Verify to enable App Lock',
           title: 'Enable App Lock',
+          subtitle: 'Use your biometric or PIN to enable lock',
+          description: 'Please authenticate to proceed',
           useFallback: true,
         });
         updateSettings({ biometricLock: true });
