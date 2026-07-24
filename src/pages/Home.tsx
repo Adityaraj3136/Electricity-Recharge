@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useConsumers } from '../hooks/useConsumers';
-import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { FAB } from '../components/FAB';
 import { TextField } from '../components/TextField';
@@ -208,25 +207,38 @@ export function Home() {
       }
     });
   };
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 pb-24">
+    <div className="flex flex-col min-h-screen bg-[#f8f9fa] pb-24 font-sans">
       {/* Header */}
-      <header className="bg-primary-600 text-white pt-12 pb-6 px-6 rounded-b-3xl shadow-md">
-        <div className="flex justify-between items-center mb-2">
-          <h1 className="text-2xl font-bold tracking-tight">SBPDCL</h1>
+      <header className="hero-mesh text-white pt-14 pb-8 px-6 rounded-b-[2.5rem] shadow-[0_10px_40px_rgba(124,58,237,0.2)] relative overflow-hidden">
+        {/* Decorative background glow circles */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary-400/20 rounded-full blur-2xl -ml-12 -mb-12 pointer-events-none"></div>
+        
+        <div className="relative z-10 flex justify-between items-center mb-6">
+          <div>
+            <p className="text-primary-100 font-medium text-sm tracking-wide uppercase mb-1">{getGreeting()}</p>
+            <h1 className="text-3xl font-bold tracking-tight">Family Recharge</h1>
+          </div>
           <button 
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 hover:bg-primary-700 rounded-full transition-colors"
+            className="p-3 bg-white/10 backdrop-blur-md hover:bg-white/20 rounded-full transition-all active:scale-95"
           >
-            <Settings size={24} />
+            <Settings size={22} className="text-white" />
           </button>
         </div>
-        <p className="text-primary-100 font-medium">Family Recharge</p>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 pt-6 max-w-md mx-auto w-full">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4 px-2">Select Consumer</h2>
+      <main className="flex-1 px-5 pt-8 max-w-md mx-auto w-full relative z-10 -mt-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-5 px-2">Your Consumers</h2>
         
         {/* Removed copied UI block */}
 
@@ -241,64 +253,66 @@ export function Home() {
             </div>
           ) : (
             consumers.map(consumer => (
-              <Card key={consumer.id} className="relative group">
-                <div className="p-5 flex items-center justify-between">
+              <div key={consumer.id} className="glass-card relative group interactive-scale overflow-hidden">
+                <div className="p-5 pb-4 flex items-center justify-between border-b border-gray-100/50">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 font-bold text-lg">
-                      {consumer.name.charAt(0).toUpperCase()}
+                    <div className="w-12 h-12 rounded-full premium-gradient p-[2px]">
+                      <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-primary-600 font-bold text-lg">
+                        {consumer.name.charAt(0).toUpperCase()}
+                      </div>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">{consumer.name}</h3>
-                      <p className="text-sm text-gray-500 font-mono mt-0.5">CA: {consumer.caNumber}</p>
+                      <h3 className="font-bold text-gray-900 text-[17px]">{consumer.name}</h3>
+                      <p className="text-sm text-gray-500 font-mono mt-0.5 tracking-wide">CA: {consumer.caNumber}</p>
                     </div>
                   </div>
                   
                   <div className="relative">
                     <button 
                       onClick={() => setActionMenuId(actionMenuId === consumer.id ? null : consumer.id)}
-                      className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                      className="p-2 text-gray-400 hover:text-primary-600 rounded-full hover:bg-primary-50 transition-colors active:scale-90"
                     >
                       <MoreVertical size={20} />
                     </button>
                     
                     {actionMenuId === consumer.id && (
-                      <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-10 animate-in fade-in zoom-in-95">
+                      <div className="absolute right-0 top-full mt-1 w-36 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 py-2 z-20 animate-in fade-in zoom-in-95 origin-top-right">
                         <button 
                           onClick={() => openEdit(consumer)}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                          className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary-600 flex items-center gap-3 transition-colors"
                         >
-                          <Edit2 size={14} /> Edit
+                          <Edit2 size={16} /> Edit
                         </button>
                         <button 
                           onClick={() => handleDelete(consumer.id)}
-                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
                         >
-                          <Trash2 size={14} /> Delete
+                          <Trash2 size={16} /> Delete
                         </button>
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="px-5 pb-5 pt-2 flex flex-col gap-2">
+                <div className="px-5 py-4 flex flex-col gap-3 bg-gradient-to-b from-transparent to-white/40">
                   <Button 
                     fullWidth 
                     onClick={() => handleRecharge(consumer)}
-                    className="gap-2"
+                    className="gap-2 shadow-primary-500/20"
                   >
-                    <Zap size={18} />
+                    <Zap size={18} className="text-yellow-300 fill-yellow-300" />
                     Recharge Now
                   </Button>
                   <Button 
                     fullWidth 
                     variant="secondary"
                     onClick={() => handleCheckBalance(consumer)}
-                    className="gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    className="gap-2 font-medium"
                   >
-                    <Search size={18} />
+                    <Search size={18} className="text-primary-500" />
                     Check Balance
                   </Button>
                 </div>
-              </Card>
+              </div>
             ))
           )}
         </div>
