@@ -29,6 +29,14 @@ const AVATAR_GRADIENTS = [
 const getAvatarGradient = (name: string) =>
   AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
 
+// ─── App Logo SVG ─────────────────────────────────────────────────────────
+const AppLogo = ({ className = "" }: { className?: string }) => (
+  <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
+    <text x="10" y="66" fill="white" fontSize="42" fontWeight="900" fontFamily="system-ui, -apple-system, sans-serif" letterSpacing="-1">SB</text>
+    <path d="M72 26 L42 62 H69 L66 86 L96 50 H69 Z" fill="#FDE047" />
+  </svg>
+);
+
 // ─── Inline SVG hero illustration ─────────────────────────────────────────
 const HeroIllustration = () => (
   <svg viewBox="0 0 340 220" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
@@ -255,9 +263,7 @@ export function Home() {
       <nav className={`hidden md:flex items-center justify-between px-8 py-3 ${sectionBg} shadow-sm border-b ${isDark ? 'border-[#253350]' : 'border-gray-100'} sticky top-0 z-40`}>
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-md shadow-primary-500/30">
-            <Hexagon size={16} className="text-yellow-400 fill-yellow-400" />
-          </div>
+          <AppLogo className="w-8 h-8 bg-primary-600 rounded-lg shadow-md shadow-primary-500/30" />
           <span className={`font-bold text-lg tracking-tight ${textPrimary}`}>{t.appName}</span>
         </div>
 
@@ -318,9 +324,7 @@ export function Home() {
       ════════════════════════════════════════════════════════ */}
       <header className={`md:hidden flex items-center justify-between px-4 py-3 ${sectionBg} border-b ${isDark ? 'border-[#253350]' : 'border-gray-100'} sticky top-0 z-40`} style={{ paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))' }}>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center">
-            <Hexagon size={14} className="text-yellow-400 fill-yellow-400" />
-          </div>
+          <AppLogo className="w-7 h-7 bg-primary-600 rounded-lg" />
           <span className={`font-bold text-base ${textPrimary}`}>{t.appName}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -589,9 +593,7 @@ export function Home() {
             {/* Brand */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center">
-                  <Hexagon size={14} className="text-yellow-400 fill-yellow-400" />
-                </div>
+                <AppLogo className="w-7 h-7 bg-primary-600 rounded-lg" />
                 <span className="font-bold text-white text-base">{t.appName}</span>
               </div>
               <p className="text-blue-300 text-xs leading-relaxed">
@@ -652,9 +654,9 @@ export function Home() {
           {/* Center FAB */}
           <button
             onClick={() => { resetForm(); setIsAddOpen(true); }}
-            className="-mt-5 w-14 h-14 bg-primary-600 hover:bg-primary-700 text-white rounded-full flex items-center justify-center shadow-xl shadow-primary-500/40 active:scale-95 transition-all border-4 border-white dark:border-[#162033]"
+            className="-mt-5 hover:bg-primary-700 rounded-full flex items-center justify-center shadow-xl shadow-primary-500/40 active:scale-95 transition-all border-4 border-white dark:border-[#162033]"
           >
-            <Hexagon size={22} className="text-yellow-400 fill-yellow-400" />
+            <AppLogo className="w-12 h-12 bg-primary-600 rounded-full" />
           </button>
 
           {[
@@ -679,9 +681,7 @@ export function Home() {
       <Modal isOpen={isAddOpen} onClose={() => { setIsAddOpen(false); resetForm(); }} title={editingConsumer ? t.form.editTitle : t.form.addTitle}>
         <div className="flex flex-col gap-4">
           <div className={`flex items-center gap-3 p-3 rounded-xl border ${isDark ? 'bg-primary-900/30 border-primary-800' : 'bg-gradient-to-r from-primary-50 to-indigo-50 border-primary-100'}`}>
-            <div className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Hexagon size={18} className="text-yellow-400 fill-yellow-400" />
-            </div>
+            <AppLogo className="w-9 h-9 bg-primary-600 rounded-xl flex-shrink-0" />
             <div>
               <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-primary-300' : 'text-primary-700'}`}>SBPDCL Portal</p>
               <p className={`text-xs leading-tight mt-0.5 ${textSecondary}`}>
