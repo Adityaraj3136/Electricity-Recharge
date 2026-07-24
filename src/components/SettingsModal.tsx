@@ -415,6 +415,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </section>
 
+        {/* ── Updates ─────────────────────────────────────── */}
+        <section>
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+            App Updates
+          </h3>
+          <div className="bg-gray-50 dark:bg-[#1c2a42] rounded-xl p-2">
+            <RowBtn onClick={() => window.open('https://github.com/Adityaraj3136/Electricity-Recharge/releases/latest', '_blank')}>
+              <div className="flex items-center gap-3 text-gray-700 dark:text-gray-200">
+                <Download size={20} className="text-primary-500" />
+                <div>
+                  <span className="font-medium block">Check for Updates</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">Download the latest APK version</span>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-gray-400" />
+            </RowBtn>
+          </div>
+        </section>
+
         {/* Version */}
         <p className="text-center text-xs text-gray-400 dark:text-gray-600 pb-2">
           Bijli Recharge v1.1 — Not an official SBPDCL app
