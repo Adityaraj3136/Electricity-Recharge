@@ -77,3 +77,24 @@ This project is configured with GitHub Actions to automatically compile a secure
 
 ## 🛡️ Privacy Statement
 This app acts as a local bridge to the official SBPDCL website. It does **not** collect, transmit, or store any payment details, passwords, or cards. All interactions with the payment gateway occur securely within an isolated embedded browser directly connected to the official vendor. All your saved CA numbers are strictly stored on-device.
+
+## ?? Troubleshooting & Error Codes
+
+To help easily identify and debug issues in the app, we use a standardized set of error codes. If you encounter an issue, look for these codes in the UI:
+
+### Network & Environment
+- **`ERR_NET_01`**: No internet connection (Offline).
+- **`ERR_ENV_01`**: Required browser plugin (`InAppBrowser`) is unavailable or missing.
+
+### Security & Authentication
+- **`ERR_SEC_01`**: Biometric authentication hardware is not available on the device.
+- **`ERR_SEC_02`**: Biometric authentication failed (e.g., unrecognized fingerprint, user cancelled).
+- **`ERR_SEC_03`**: Notification permissions denied.
+
+### Storage & Data Management
+- **`ERR_DAT_01`**: Invalid backup JSON format (corrupted or incorrect structure).
+- **`ERR_DAT_02`**: Error reading the backup file (e.g., IO error).
+
+### UI & Application State
+- **`ERR_APP_01`**: Unexpected UI Crash (Caught by the global React `ErrorBoundary`).
+

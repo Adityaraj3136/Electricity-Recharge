@@ -81,6 +81,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [notifStatus, setNotifStatus] = useState<NotifStatus>('idle');
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // Check current permission state when the modal opens
   useEffect(() => {
@@ -99,7 +100,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       try {
         const { isAvailable } = await NativeBiometric.isAvailable();
         if (!isAvailable) {
-          alert('Biometric authentication is not available on this device.');
+          alert('Biometric authentication is not available on this device. [ERR_SEC_01]');
           return;
         }
         await NativeBiometric.verifyIdentity({
@@ -109,7 +110,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         });
         updateSettings({ biometricLock: true });
       } catch {
-        alert('Failed to enable biometric lock.');
+        alert('Failed to enable biometric lock. [ERR_SEC_02]');
       }
     } else {
       updateSettings({ biometricLock: false });
@@ -133,7 +134,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       if (!granted) {
         setNotifStatus('denied');
         setScheduleError(
-          'Notification permission denied. Please enable notifications for Bijli Recharge in your device Settings → Apps → Bijli Recharge → Notifications.'
+          'Notification permission denied. Please enable notifications for Bijli Recharge in your device Settings → Apps → Bijli Recharge → Notifications. [ERR_SEC_03]'
         );
         return;
       }
@@ -168,10 +169,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           refresh();
           alert('✅ Backup restored successfully!');
         } else {
-          alert('❌ Invalid backup format.');
+          alert('❌ Invalid backup format. [ERR_DAT_01]');
         }
       } catch {
-        alert('❌ Error reading backup file.');
+        alert('❌ Error reading backup file. [ERR_DAT_02]');
       }
     };
     reader.readAsText(file);
@@ -388,11 +389,21 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </section>
 
-        {/* ── About ─────────────────────────────────────── */}
+        {/* ── Help & About ────────────────────────────────────────── */}
         <section>
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-            About App
+            Help &amp; About
           </h3>
+          <div className="bg-gray-50 dark:bg-[#1c2a42] rounded-xl p-2 space-y-1 mb-4">
+            <RowBtn onClick={() => setShowHelpModal(true)}>
+              <div className="flex items-center gap-3 text-gray-700 dark:text-gray-200">
+                <span className="text-xl">🆘</span>
+                <span className="font-medium">Troubleshooting Guide</span>
+              </div>
+              <ChevronRight size={18} className="text-gray-400" />
+            </RowBtn>
+          </div>
+
           <div className="bg-gray-50 dark:bg-[#1c2a42] rounded-xl p-4 text-sm text-gray-600 dark:text-gray-400 space-y-4">
             <div className="flex gap-3">
               <Shield className="text-green-600 shrink-0" size={20} />
@@ -461,6 +472,49 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             className="w-full h-full border-0 bg-white dark:bg-slate-900"
             title="Contact Developer"
           />
+        </div>
+      </Modal>
+    )}
+
+    {showHelpModal && (
+      <Modal 
+        isOpen={showHelpModal} 
+        onClose={() => setShowHelpModal(false)} 
+        title="Troubleshooting"
+      >
+        <div className="space-y-4 pb-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            If you encounter an issue, look for these error codes in the app to identify the problem:
+          </p>
+
+          <div className="space-y-3">
+            <div className="bg-gray-50 dark:bg-[#1c2a42] p-3 rounded-lg border border-gray-100 dark:border-[#253350]">
+              <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-1">Network &amp; Environment</h4>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1"><strong className="text-primary-600 dark:text-primary-400">ERR_NET_01</strong> : No internet connection (Offline).</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400"><strong className="text-primary-600 dark:text-primary-400">ERR_ENV_01</strong> : Required browser plugin is unavailable or missing.</p>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-[#1c2a42] p-3 rounded-lg border border-gray-100 dark:border-[#253350]">
+              <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-1">Security &amp; Auth</h4>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1"><strong className="text-primary-600 dark:text-primary-400">ERR_SEC_01</strong> : Biometric hardware not available.</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1"><strong className="text-primary-600 dark:text-primary-400">ERR_SEC_02</strong> : Biometric authentication failed or cancelled.</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400"><strong className="text-primary-600 dark:text-primary-400">ERR_SEC_03</strong> : Notification permissions denied.</p>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-[#1c2a42] p-3 rounded-lg border border-gray-100 dark:border-[#253350]">
+              <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-1">Data &amp; App Crashes</h4>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1"><strong className="text-primary-600 dark:text-primary-400">ERR_DAT_01</strong> : Invalid backup JSON format.</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1"><strong className="text-primary-600 dark:text-primary-400">ERR_DAT_02</strong> : Error reading backup file.</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400"><strong className="text-primary-600 dark:text-primary-400">ERR_APP_01</strong> : Unexpected App Crash.</p>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => setShowHelpModal(false)}
+            className="w-full mt-4 py-3 bg-primary-600 text-white rounded-xl font-bold active:scale-95 transition-all shadow-lg shadow-primary-500/30"
+          >
+            Got it
+          </button>
         </div>
       </Modal>
     )}

@@ -56,8 +56,8 @@ export const translations = {
       rechargeStart: 'Starting recharge for',
       balanceOnly: 'Balance check is only available in the mobile app.',
       copyCA: 'CA Number copied! Paste it on the website.',
-      browserError: 'Browser plugin not available.',
-      offline: 'No internet connection. Please check your network and try again.',
+      browserError: 'Browser plugin not available. [ERR_ENV_01]',
+      offline: 'No internet connection. Please check your network and try again. [ERR_NET_01]',
     },
     delete: {
       confirm: 'Delete this meter?',
@@ -127,8 +127,8 @@ export const translations = {
       rechargeStart: 'रिचार्ज शुरू हो रहा है',
       balanceOnly: 'बैलेंस जांच केवल मोबाइल ऐप में उपलब्ध है।',
       copyCA: 'CA नंबर कॉपी हो गया! वेबसाइट पर पेस्ट करें।',
-      browserError: 'ब्राउज़र प्लगइन उपलब्ध नहीं है।',
-      offline: 'कोई इंटरनेट कनेक्शन नहीं है। कृपया अपना नेटवर्क जांचें और पुनः प्रयास करें।',
+      browserError: 'ब्राउज़र प्लगइन उपलब्ध नहीं है। [ERR_ENV_01]',
+      offline: 'कोई इंटरनेट कनेक्शन नहीं है। कृपया अपना नेटवर्क जांचें और पुनः प्रयास करें। [ERR_NET_01]',
     },
     delete: {
       confirm: 'यह मीटर हटाएं?',
