@@ -50,6 +50,7 @@ export function Home() {
   const { settings, updateSettings } = useSettings();
 
   const [isSyncing, setIsSyncing] = useState(false);
+  const [sessionBalances, setSessionBalances] = useState<Record<string, { balance: string, date: string, status: string }>>({});
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingConsumer, setEditingConsumer] = useState<Consumer | null>(null);
   const [name, setName] = useState('');
@@ -79,6 +80,7 @@ export function Home() {
   const { isPulling, isRefreshing, pullProgress, handleTouchStart, handleTouchMove, handleTouchEnd } = usePullToRefresh({
     enabled: activeTab === 'home' && !isAutomating && !isBalanceLoading,
     onRefresh: useCallback(async () => {
+      setSessionBalances({});
       refreshConsumers();
       await new Promise(r => setTimeout(r, 600));
     }, [refreshConsumers]),
@@ -464,11 +466,21 @@ export function Home() {
             try { browser.close(); } catch(e){}
             
             if (data) {
+              // Persist the fetched balance for low balance reminders
               updateConsumer(consumer.id, {
                 lastFetchedBalance: data.availableBalance,
                 lastFetchedDate: new Date().toLocaleDateString('en-GB'),
                 currentStatus: data.currentStatus
               });
+              // Keep it in session state for the UI to display until refresh/restart
+              setSessionBalances(prev => ({
+                ...prev,
+                [consumer.id]: {
+                  balance: data.availableBalance,
+                  date: new Date().toLocaleDateString('en-GB'),
+                  status: data.currentStatus
+                }
+              }));
               checkAndNotifyLowBalance(data, consumer.name);
             }
             resolve();
@@ -801,10 +813,10 @@ export function Home() {
                               {consumer.preferredGateway}
                             </span>
                           )}
-                          {consumer.lastFetchedBalance && (
+                          {sessionBalances[consumer.id] && (
                             <div className="mt-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                              Balance: <span className={consumer.lastFetchedBalance.includes('-') ? 'text-red-500' : 'text-green-500'}>{consumer.lastFetchedBalance}</span>
-                              <span className="text-[10px] text-gray-400 font-normal ml-1">({consumer.lastFetchedDate})</span>
+                              Balance: <span className={sessionBalances[consumer.id].balance.includes('-') ? 'text-red-500' : 'text-green-500'}>{sessionBalances[consumer.id].balance}</span>
+                              <span className="text-[10px] text-gray-400 font-normal ml-1">({sessionBalances[consumer.id].date})</span>
                             </div>
                           )}
                         </div>
@@ -929,10 +941,10 @@ export function Home() {
                             Default: ₹{consumer.preferredAmount}
                           </span>
                         )}
-                        {consumer.lastFetchedBalance && (
+                        {sessionBalances[consumer.id] && (
                           <div className="mt-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                            Balance: <span className={consumer.lastFetchedBalance.includes('-') ? 'text-red-500' : 'text-green-500'}>{consumer.lastFetchedBalance}</span>
-                            <span className="text-[10px] text-gray-400 font-normal ml-1">({consumer.lastFetchedDate})</span>
+                            Balance: <span className={sessionBalances[consumer.id].balance.includes('-') ? 'text-red-500' : 'text-green-500'}>{sessionBalances[consumer.id].balance}</span>
+                            <span className="text-[10px] text-gray-400 font-normal ml-1">({sessionBalances[consumer.id].date})</span>
                           </div>
                         )}
                       </div>
