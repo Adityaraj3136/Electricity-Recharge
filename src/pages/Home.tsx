@@ -364,9 +364,6 @@ export function Home() {
           </div>
         </div>
       </Modal>
-
-// Removed Progress Modal – EmbeddedBrowser shows its own progress UI
-
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-in fade-in slide-in-from-bottom-5">
