@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Home } from './pages/Home';
 import { SettingsProvider, useSettings } from './hooks/useSettings';
 import { Lock } from 'lucide-react';
+import { Onboarding, hasCompletedOnboarding } from './components/Onboarding';
 
 // Detect if running inside the native Capacitor app
 const isNative = () => {
@@ -14,7 +15,8 @@ const isNative = () => {
 
 function AppInner() {
   const { settings } = useSettings();
-  const [isUnlocked, setIsUnlocked] = useState(true); // default open; locked below if enabled
+  const [isUnlocked, setIsUnlocked] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(() => !hasCompletedOnboarding());
 
   // Trigger biometric auth on mount — only on native & when enabled
   useEffect(() => {
@@ -65,6 +67,11 @@ function AppInner() {
         </button>
       </div>
     );
+  }
+
+  // Show onboarding on first launch
+  if (showOnboarding) {
+    return <Onboarding onDone={() => setShowOnboarding(false)} />;
   }
 
   return (

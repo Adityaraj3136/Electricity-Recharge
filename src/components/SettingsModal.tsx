@@ -62,10 +62,10 @@ async function requestNotificationPermission(): Promise<boolean> {
 }
 
 /**
- * Schedule a monthly reminder on a given day of the month at 10:00 AM.
- * Cancels any existing reminder first.
+ * Schedule a low balance reminder on a given day of the month at 10:00 AM.
+ * Shows saved meter names in the notification to help user know which meters to check.
  */
-async function scheduleMonthlyReminder(day: number) {
+async function scheduleMonthlyReminder(day: number, consumerNames: string[] = []) {
   // Cancel previous
   try { await LocalNotifications.cancel({ notifications: [{ id: 101 }] }); } catch (_) {}
 
@@ -77,21 +77,30 @@ async function scheduleMonthlyReminder(day: number) {
     next.setMonth(next.getMonth() + 1);
   }
 
+  // Build a personalized notification body with meter names
+  let body = "Your electricity balance might be low. Don't forget to check and recharge today!";
+  if (consumerNames.length === 1) {
+    body = `⚡ ${consumerNames[0]}: Your electricity balance might be low. Open the app to check and recharge!`;
+  } else if (consumerNames.length > 1) {
+    const names = consumerNames.slice(0, 3).join(', ');
+    body = `Check balances for: ${names}${consumerNames.length > 3 ? ` +${consumerNames.length - 3} more` : ''}. Tap to open Bijli Recharge.`;
+  }
+
   await LocalNotifications.schedule({
     notifications: [
       {
         id: 101,
         title: '⚡ Low Balance Reminder',
-        body: "Your electricity balance might be low. Don't forget to check and recharge today!",
-        channelId: 'bijli_reminder',   // Android 8+ channel
+        body,
+        channelId: 'bijli_reminder',
         schedule: {
-          at: next,                    // Exact date-time — works Android 10-16
-          repeats: true,               // Repeat monthly
+          at: next,
+          repeats: true,
           every: 'month',
-          allowWhileIdle: true,        // Deliver even in Doze mode
+          allowWhileIdle: true,
         },
         sound: 'default',
-        smallIcon: 'ic_stat_icon_config_sample', // use default Capacitor icon
+        smallIcon: 'ic_stat_icon_config_sample',
         iconColor: '#2563EB',
         actionTypeId: '',
         extra: null,
@@ -150,23 +159,20 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
-  // ── Monthly Reminder ───────────────────────────────────────────────────────
+  // ── Low Balance Alert Toggle ──────────────────────────────────────────────
   const toggleReminder = async () => {
     setScheduleError(null);
 
     if (settings.reminderEnabled) {
-      // Turn OFF
-      try { await LocalNotifications.cancel({ notifications: [{ id: 101 }] }); } catch (_) {}
       updateSettings({ reminderEnabled: false });
       setNotifStatus('idle');
       return;
     }
 
-    // Turn ON — request permission first
+    // Turn ON — request notification permission first (needed to send alerts)
     if (isNative()) {
       setNotifStatus('requesting');
       const granted = await requestNotificationPermission();
-
       if (!granted) {
         setNotifStatus('denied');
         setScheduleError(
@@ -175,32 +181,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         return;
       }
       setNotifStatus('granted');
+      // Ensure notification channel exists
+      try { await ensureNotificationChannel(); } catch (_) {}
     }
 
-    try {
-      await ensureNotificationChannel();
-      await scheduleMonthlyReminder(settings.reminderDay);
-      updateSettings({ reminderEnabled: true });
-    } catch (err: any) {
-      console.error('Schedule failed:', err);
-      setScheduleError(
-        'Could not schedule the reminder. Please check that Bijli Recharge has permission to schedule exact alarms in your device Settings → Apps → Special App Access → Alarms & Reminders.'
-      );
-    }
+    updateSettings({ reminderEnabled: true });
   };
 
-  const changeReminderDay = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const day = parseInt(e.target.value, 10);
-    updateSettings({ reminderDay: day });
-    setScheduleError(null);
-    if (settings.reminderEnabled) {
-      try {
-        await scheduleMonthlyReminder(day);
-      } catch (err: any) {
-        setScheduleError('Failed to update reminder. Try toggling it off and on again.');
-      }
-    }
-  };
 
   // ── Data Backup ────────────────────────────────────────────────────────────
   const handleExport = () => {
@@ -291,18 +278,18 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         {/* ── Reminders ─────────────────────────────────── */}
         <section>
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-            Reminders
+            Alerts & Reminders
           </h3>
           <div className="bg-gray-50 dark:bg-[#1c2a42] rounded-xl p-2 space-y-2">
             <RowBtn onClick={toggleReminder}>
               <div className="flex items-center gap-3 text-gray-700 dark:text-gray-200">
                 {settings.reminderEnabled ? <Bell size={20} className="text-primary-500" /> : <BellOff size={20} />}
                 <div>
-                  <span className="font-medium block">Low Balance Reminder</span>
+                  <span className="font-medium block">Low Balance Alert</span>
                   <span className="text-xs text-gray-400 dark:text-gray-500">
                     {settings.reminderEnabled
-                      ? `Scheduled on day ${settings.reminderDay} of each month`
-                      : 'Remind me when balance is low'}
+                      ? 'Alerts when balance is below ₹100'
+                      : 'Notify me when balance is low'}
                   </span>
                 </div>
               </div>
@@ -327,35 +314,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             )}
 
-            {/* Day picker */}
+            {/* Info box */}
             {settings.reminderEnabled && (
-              <div className="px-3 pb-3">
-                <div className="flex items-center justify-between py-2">
-                  <div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200 block">Remind me on day:</span>
-                    <span className="text-xs text-gray-400 dark:text-gray-500">of every month at 10:00 AM</span>
-                  </div>
-                  <select
-                    value={settings.reminderDay}
-                    onChange={changeReminderDay}
-                    className="bg-white dark:bg-[#253350] border border-gray-200 dark:border-[#253350] text-gray-700 dark:text-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
-                  >
-                    {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
-                      <option key={day} value={day}>{day}{
-                        day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'
-                      }</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Info box */}
-                <div className="mt-2 p-3 bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 rounded-lg">
+              <div className="mx-3 pb-3">
+                <div className="p-3 bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 rounded-lg">
                   <p className="text-xs text-primary-700 dark:text-primary-300 leading-relaxed">
-                    📅 You will receive a notification on the <strong>{settings.reminderDay}{
-                      settings.reminderDay === 1 ? 'st' :
-                      settings.reminderDay === 2 ? 'nd' :
-                      settings.reminderDay === 3 ? 'rd' : 'th'
-                    }</strong> of every month at <strong>10:00 AM</strong> reminding you to check your balance or recharge.
+                    ⚡ Whenever you <strong>check your balance</strong>, the app will automatically send an alert if any meter's balance drops below <strong>₹100</strong>.
                   </p>
                 </div>
               </div>
@@ -421,23 +385,30 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
             App Updates
           </h3>
-          <div className="bg-gray-50 dark:bg-[#1c2a42] rounded-xl p-2">
-            <RowBtn onClick={() => window.open('https://github.com/Adityaraj3136/Electricity-Recharge/releases/latest', '_blank')}>
+          <div className="bg-gray-50 dark:bg-[#1c2a42] rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-gray-700 dark:text-gray-200">
-                <Download size={20} className="text-primary-500" />
+                <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                  <Download size={18} className="text-primary-600" />
+                </div>
                 <div>
-                  <span className="font-medium block">Check for Updates</span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">Download the latest APK version</span>
+                  <span className="font-medium block text-sm">Current Version</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">Bijli Recharge v1.2</span>
                 </div>
               </div>
-              <ChevronRight size={18} className="text-gray-400" />
-            </RowBtn>
+              <span className="text-xs font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2.5 py-1 rounded-full border border-green-200 dark:border-green-800">
+                Up to date
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed">
+              📲 To get the latest update, contact the developer. New features and bug fixes are rolled out regularly.
+            </p>
           </div>
         </section>
 
         {/* Version */}
         <p className="text-center text-xs text-gray-400 dark:text-gray-600 pb-2">
-          Bijli Recharge v1.1 — Not an official SBPDCL app
+          Bijli Recharge v1.2 — Not an official SBPDCL app
         </p>
 
       </div>

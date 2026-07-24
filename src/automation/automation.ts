@@ -261,8 +261,8 @@ export const automationScript = `
 
       // 2. Select Gateway (Compulsory to enable Pay Now)
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting Gateway' }, '*');
-      // Wait for radio buttons to appear first
-      await wait(1000);
+      // Wait for radio buttons to appear first - give Angular time to render
+      await wait(1200);
       let radioInput = null;
       if (config.gateway) {
         let imgAltMatch = '';
@@ -286,23 +286,57 @@ export const automationScript = `
       }
 
       if (radioInput) {
-        // Directly click the hidden radio input — most reliable method for Angular Material
         radioInput.click();
         radioInput.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         radioInput.dispatchEvent(new Event('change', { bubbles: true }));
         await wait(800);
       }
 
-      // 3. Select Amount
+      // 3. Select Amount — do this AFTER gateway to avoid Angular re-validating and clearing amount
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting amount' }, '*');
       if (config.amount) {
         await selectAmount(config.amount);
+        // Verify the amount is actually filled — retry up to 3 times if not
+        let attempts = 0;
+        while (attempts < 3) {
+          await wait(600);
+          // Check if any amount input now has a value
+          const amountInputs = document.querySelectorAll(
+            'input[formcontrolname="payAmount"], input[formcontrolname="amount"], input[placeholder*="Amount" i], input[placeholder*="amount" i]'
+          );
+          let filled = false;
+          for (let inp of Array.from(amountInputs)) {
+            if (inp.value && inp.value !== '0' && inp.value !== '') { filled = true; break; }
+          }
+          // Also accept if a preset amount button appears selected
+          const selectedBtn = Array.from(document.querySelectorAll('button')).find(b =>
+            b.textContent && b.textContent.includes('₹' + config.amount) && 
+            (b.classList.contains('selected') || b.classList.contains('active') || b.style.background || b.getAttribute('aria-pressed') === 'true')
+          );
+          if (filled || selectedBtn) break;
+          console.warn('[SBPDCL] Amount not filled yet, retrying... attempt', attempts + 1);
+          await selectAmount(config.amount);
+          attempts++;
+        }
+        await wait(400); // final settle time
       } else {
         await waitForUserAmount(); // wait up to 10s for user
       }
 
-      // 4. Open Payment
+      // 4. Open Payment — only click after confirming page is ready (Pay Now not disabled)
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Opening payment' }, '*');
+      // Wait until Pay Now button is enabled (not disabled)
+      await new Promise(resolve => {
+        const deadline = Date.now() + 8000;
+        function checkPayBtn() {
+          const btn = Array.from(document.querySelectorAll('button')).find(b =>
+            b.textContent && b.textContent.trim().includes('Pay Now')
+          );
+          if ((btn && !btn.disabled) || Date.now() >= deadline) resolve(undefined);
+          else setTimeout(checkPayBtn, 300);
+        }
+        checkPayBtn();
+      });
       await clickPayNow();
 
       // Wait for user to tap Yes/No on confirmation popup

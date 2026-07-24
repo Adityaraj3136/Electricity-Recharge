@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useConsumers } from '../hooks/useConsumers';
 import { useLang } from '../hooks/useLang';
 import { useSettings } from '../hooks/useSettings';
@@ -10,13 +10,16 @@ import type { Consumer, BalanceDetails } from '../types';
 import {
   Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search,
   Bolt, Globe, Moon, Sun, Home as HomeIcon, BarChart2, List,
-  HelpCircle, User, Shield, ArrowRight, BookOpen, CreditCard, Hexagon, Activity
+  HelpCircle, User, Shield, ArrowRight, BookOpen, CreditCard, Hexagon, Activity,
+  RefreshCw
 } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
 import { BalanceModal } from '../components/BalanceModal';
 import { HelpModal } from '../components/HelpModal';
 import { automationScript } from '../automation/automation';
 import { Network } from '@capacitor/network';
+import { sanitizeText, sanitizeNumber } from '../utils/sanitize';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
 
 // ─── Avatar colour palette ─────────────────────────────────────────────────
 const AVATAR_GRADIENTS = [
@@ -133,7 +136,7 @@ const HeroIllustration = () => (
 
 // ─── Component ─────────────────────────────────────────────────────────────
 export function Home() {
-  const { consumers, addConsumer, updateConsumer, deleteConsumer } = useConsumers();
+  const { consumers, addConsumer, updateConsumer, deleteConsumer, refresh: refreshConsumers } = useConsumers();
   const { lang, t, toggleLang } = useLang();
   const { settings, updateSettings } = useSettings();
 
@@ -157,6 +160,19 @@ export function Home() {
   const [activeTab, setActiveTab] = useState<'home' | 'meters'>('home');
   const [iframeConsumer, setIframeConsumer] = useState<Consumer | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Per-field form errors
+  const [formErrors, setFormErrors] = useState<{ name?: string; caNumber?: string; mobile?: string }>({});
+
+  // Pull-to-refresh — only active on home tab, not during automation or payment
+  const isAutomating = !!iframeConsumer;
+  const { isPulling, isRefreshing, pullProgress, handleTouchStart, handleTouchMove, handleTouchEnd } = usePullToRefresh({
+    enabled: activeTab === 'home' && !isAutomating && !isBalanceLoading,
+    onRefresh: useCallback(async () => {
+      refreshConsumers();
+      await new Promise(r => setTimeout(r, 600));
+    }, [refreshConsumers]),
+  });
 
   // Inject automation into desktop iframe when consumer is set
   useEffect(() => {
@@ -208,6 +224,44 @@ export function Home() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  /**
+   * Fire an immediate local notification if the fetched balance is below ₹100.
+   * Only fires on the native Capacitor app where LocalNotifications is available.
+   */
+  const checkAndNotifyLowBalance = async (details: BalanceDetails, consumerName: string) => {
+    // Only notify if user has enabled low balance alerts
+    if (!settings.reminderEnabled) return;
+    try {
+      const balStr = (details.availableBalance || '').replace(/[^0-9.]/g, '');
+      const bal = parseFloat(balStr);
+      if (isNaN(bal) || bal >= 100) return; // Balance is fine
+
+      const { LocalNotifications } = await import('@capacitor/local-notifications');
+      const { result: permResult } = await LocalNotifications.checkPermissions();
+      if (permResult !== 'granted') {
+        const { display } = await LocalNotifications.requestPermissions();
+        if (display !== 'granted') return;
+      }
+
+      await LocalNotifications.schedule({
+        notifications: [{
+          id: Math.floor(Math.random() * 90000) + 10000,
+          title: '⚠️ Low Balance Alert',
+          body: `${consumerName}: ₹${bal.toFixed(0)} remaining. Recharge now to avoid power cut!`,
+          channelId: 'bijli_reminder',
+          schedule: { at: new Date(Date.now() + 1000) }, // fire in 1 second
+          sound: 'default',
+          smallIcon: 'ic_stat_icon_config_sample',
+          iconColor: '#DC2626',
+          actionTypeId: '',
+          extra: null,
+        }],
+      });
+    } catch (_) {
+      // Silently fail if notifications are not available
+    }
+  };
+
   const getGreeting = () => {
     const h = new Date().getHours();
     if (h < 12) return t.greeting.morning;
@@ -218,15 +272,21 @@ export function Home() {
   const resetForm = () => {
     setName(''); setCaNumber(''); setMobile('');
     setAmount(''); setGateway('HDFC'); setEditingConsumer(null);
+    setFormErrors({});
   };
 
   const handleSave = () => {
-    if (!name || !caNumber || !mobile) {
-      showToast(lang === 'en' ? 'Please fill all required fields' : 'कृपया सभी आवश्यक फ़ील्ड भरें', 'error');
+    const errors: { name?: string; caNumber?: string; mobile?: string } = {};
+    if (!name.trim()) errors.name = lang === 'en' ? 'Location name is required' : 'स्थान का नाम आवश्यक है';
+    if (!caNumber.trim()) errors.caNumber = lang === 'en' ? 'CA Number is required' : 'CA नंबर आवश्यक है';
+    if (!mobile.trim()) errors.mobile = lang === 'en' ? 'Mobile number is required for recharge' : 'रिचार्ज के लिए मोबाइल नंबर आवश्यक है';
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
-    const data = { name, caNumber, mobileNumber: mobile, preferredAmount: amount, preferredGateway: gateway as any };
-    editingConsumer ? updateConsumer(editingConsumer.id, data) : addConsumer(data);
+    setFormErrors({});
+    const data = { name: sanitizeText(name), caNumber: sanitizeNumber(caNumber), mobileNumber: sanitizeNumber(mobile), preferredAmount: sanitizeNumber(amount), preferredGateway: gateway as any };
+    if (editingConsumer) { updateConsumer(editingConsumer.id, data); } else { addConsumer(data); }
     setIsAddOpen(false);
     resetForm();
   };
@@ -386,7 +446,10 @@ export function Home() {
           browser.addEventListener('message', (event: any) => {
             try {
               const data = JSON.parse(event.data);
-              if (data.type === 'BALANCE_DETAILS') finish(true, data.details);
+              if (data.type === 'BALANCE_DETAILS') {
+                finish(true, data.details);
+                checkAndNotifyLowBalance(data.details, consumer.name);
+              }
               else if (data.type === 'BALANCE_ERROR') finish(false, null, data.error);
               else if (data.type === 'CLOSE_BROWSER') finish(false, null, 'Closed');
             } catch (e) {}
@@ -427,7 +490,10 @@ export function Home() {
                       if (done) return;
                       try {
                         const data = JSON.parse(res?.[0] || '{}');
-                        if (data.result) finish(true, data.result);
+                        if (data.result) {
+                          finish(true, data.result);
+                          checkAndNotifyLowBalance(data.result, consumer.name);
+                        }
                         else if (data.error) finish(false, null, data.error);
                       } catch (e) {}
                     }
@@ -468,20 +534,37 @@ export function Home() {
 
   // ─── Quick actions data ─────────────────────────────────────────────────
   const quickActions = [
-    { icon: <BookOpen size={22} className="text-blue-600"/>, label: lang === 'en' ? 'Save CA Number' : 'CA नंबर सेव करें', desc: lang === 'en' ? 'Save for faster recharge' : 'तेज रिचार्ज के लिए', color: 'bg-blue-50 dark:bg-blue-900/20', onClick: () => { resetForm(); setIsAddOpen(true); } },
-    { icon: <Activity size={22} className="text-purple-600"/>, label: lang === 'en' ? 'Check Balance' : 'बैलेंस जांचें', desc: lang === 'en' ? 'View live dues' : 'बकाया देखें', color: 'bg-purple-50 dark:bg-purple-900/20', onClick: () => handleQuickAction(handleCheckBalance) },
-    { icon: <CreditCard size={22} className="text-green-600"/>, label: lang === 'en' ? 'Pay via UPI' : 'UPI से भुगतान', desc: lang === 'en' ? 'Multiple payment options' : 'भुगतान विकल्प', color: 'bg-green-50 dark:bg-green-900/20', onClick: () => handleQuickAction(handleRecharge) },
+    { icon: <BookOpen size={22} className="text-blue-600"/>, label: t.home.quickSaveCA, desc: t.home.quickSaveCADesc, color: 'bg-blue-50 dark:bg-blue-900/20', onClick: () => { resetForm(); setIsAddOpen(true); } },
+    { icon: <Activity size={22} className="text-purple-600"/>, label: t.home.quickCheckBal, desc: t.home.quickCheckBalDesc, color: 'bg-purple-50 dark:bg-purple-900/20', onClick: () => handleQuickAction(handleCheckBalance) },
+    { icon: <CreditCard size={22} className="text-green-600"/>, label: t.home.quickPayUPI, desc: t.home.quickPayUPIDesc, color: 'bg-green-50 dark:bg-green-900/20', onClick: () => handleQuickAction(handleRecharge) },
   ];
 
   // ─── How it works steps ─────────────────────────────────────────────────
   const howItWorks = [
     { num: 1, icon: <BookOpen size={20} className="text-blue-600"/>, bg: 'bg-blue-100 dark:bg-blue-900/30', title: t.home.step1Title, desc: t.home.step1Desc },
     { num: 2, icon: <Zap size={20} className="text-purple-600"/>, bg: 'bg-purple-100 dark:bg-purple-900/30', title: t.home.step2Title, desc: t.home.step2Desc },
-    { num: 3, icon: <CreditCard size={20} className="text-green-600"/>, bg: 'bg-green-100 dark:bg-green-900/30', title: lang === 'en' ? 'Pay Securely' : 'सुरक्षित भुगतान', desc: lang === 'en' ? 'Complete payment via UPI or other methods' : 'UPI या अन्य तरीकों से भुगतान करें' },
+    { num: 3, icon: <CreditCard size={20} className="text-green-600"/>, bg: 'bg-green-100 dark:bg-green-900/30', title: t.home.step3Title, desc: t.home.step3Desc },
   ];
 
   return (
-    <div className={`min-h-screen ${bg} font-sans transition-colors duration-300`}>
+    <div
+      className={`min-h-screen ${bg} font-sans transition-colors duration-300`}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      {(isPulling || isRefreshing) && (
+        <div
+          className="fixed top-0 left-0 right-0 flex items-center justify-center z-50 pointer-events-none"
+          style={{ height: `${Math.max(pullProgress * 70, isRefreshing ? 56 : 0)}px`, transition: isRefreshing ? 'none' : 'height 0.1s' }}
+        >
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg text-sm font-semibold text-white ${isRefreshing ? 'bg-primary-600' : 'bg-gray-800'} transition-all`}>
+            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} style={{ transform: `rotate(${pullProgress * 360}deg)`, transition: isRefreshing ? 'none' : 'transform 0.1s' }} />
+            {isRefreshing ? (lang === 'en' ? 'Refreshing…' : 'ताज़ा हो रहा है…') : (lang === 'en' ? 'Pull to refresh' : 'नीचे खींचें')}
+          </div>
+        </div>
+      )}
 
       {/* ════════════════════════════════════════════════════════
           DESKTOP NAVBAR (hidden on mobile)
@@ -867,9 +950,9 @@ export function Home() {
               <button
                 key={i}
                 onClick={action.onClick}
-                className={`rounded-2xl border p-4 flex flex-col items-center text-center gap-2 hover:shadow-md active:scale-95 transition-all ${isDark ? 'bg-[#1c2a42] border-[#253350] hover:border-primary-500/50' : 'bg-white border-gray-100 hover:border-primary-200 shadow-sm'}`}
+                className={`rounded-2xl border p-4 flex flex-col items-center text-center gap-2 hover:shadow-lg active:scale-95 transition-all duration-150 cursor-pointer select-none ${isDark ? 'bg-[#1c2a42] border-[#253350] hover:border-primary-500/50 hover:bg-[#1e3050]' : 'bg-white border-gray-100 hover:border-primary-200 shadow-sm hover:shadow-primary-100'}`}
               >
-                <div className={`w-11 h-11 rounded-xl ${action.color} flex items-center justify-center`}>
+                <div className={`w-11 h-11 rounded-xl ${action.color} flex items-center justify-center transition-transform duration-150 group-active:scale-90`}>
                   {action.icon}
                 </div>
                 <div>
@@ -883,32 +966,32 @@ export function Home() {
 
         {/* ── How it works ─────────────────────────────────── */}
         <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className={`text-lg font-bold ${textPrimary}`}>{lang === 'en' ? 'How it works' : 'यह कैसे काम करता है'}</h2>
-
-          </div>
-          <div className={`rounded-2xl border p-5 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100 shadow-sm'}`}>
-            <div className="flex items-start justify-start md:justify-center gap-2 sm:gap-6 md:gap-10 overflow-x-auto pb-1 w-full">
-              {howItWorks.map((step, i) => (
-                <div key={i} className="flex items-center gap-2 sm:gap-6 md:gap-10 flex-shrink-0">
-                  <div className="flex flex-col items-center text-center w-20 sm:w-28 md:w-32">
-                    <div className="relative mb-2 sm:mb-3">
-                      <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl ${step.bg} flex items-center justify-center`}>
-                        {step.icon}
-                      </div>
-                      <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
-                        {step.num}
-                      </span>
+          <h2 className={`text-lg font-bold mb-4 ${textPrimary}`}>{lang === 'en' ? 'How it works' : 'यह कैसे काम करता है'}</h2>
+          <div className={`rounded-2xl border p-5 space-y-4 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100 shadow-sm'}`}>
+            {howItWorks.map((step, i) => (
+              <div key={i}>
+                <div className="flex items-start gap-4">
+                  {/* Step icon + number */}
+                  <div className="relative flex-shrink-0">
+                    <div className={`w-12 h-12 rounded-xl ${step.bg} flex items-center justify-center`}>
+                      {step.icon}
                     </div>
-                    <p className={`text-xs sm:text-sm font-bold leading-tight ${textPrimary}`}>{step.title}</p>
-                    <p className={`text-[10px] sm:text-xs mt-1 leading-tight ${textSecondary}`}>{step.desc}</p>
+                    <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                      {step.num}
+                    </span>
                   </div>
-                  {i < howItWorks.length - 1 && (
-                    <ArrowRight size={20} className={`flex-shrink-0 mb-4 sm:mb-6 ${isDark ? 'text-[#253350]' : 'text-gray-300'}`} />
-                  )}
+                  {/* Text */}
+                  <div className="flex-1 pt-1">
+                    <p className={`text-sm font-bold leading-tight ${textPrimary}`}>{step.title}</p>
+                    <p className={`text-xs mt-1 leading-relaxed ${textSecondary}`}>{step.desc}</p>
+                  </div>
                 </div>
-              ))}
-            </div>
+                {/* Connector line between steps */}
+                {i < howItWorks.length - 1 && (
+                  <div className="ml-6 mt-1 mb-1 w-px h-4 bg-gray-200 dark:bg-[#253350]" />
+                )}
+              </div>
+            ))}
           </div>
         </section>
 
@@ -919,12 +1002,10 @@ export function Home() {
           </div>
           <div className="flex-1 min-w-0">
             <p className={`font-bold text-sm ${isDark ? 'text-primary-300' : 'text-primary-700'}`}>
-              {lang === 'en' ? 'Your security is our priority' : 'आपकी सुरक्षा हमारी प्राथमिकता है'}
+              {t.home.securityTitle}
             </p>
             <p className={`text-xs mt-0.5 leading-relaxed ${textSecondary}`}>
-              {lang === 'en'
-                ? 'We use advanced encryption and secure servers to keep your information safe.'
-                : 'हम आपकी जानकारी को सुरक्षित रखने के लिए उन्नत एन्क्रिप्शन और सुरक्षित सर्वर का उपयोग करते हैं।'}
+              {t.home.securityDesc}
             </p>
           </div>
           <div className={`hidden sm:flex flex-col items-center gap-1 flex-shrink-0 ${isDark ? 'text-[#253350]' : 'text-blue-200'}`}>
@@ -1035,11 +1116,41 @@ export function Home() {
               </p>
             </div>
           </div>
-          <TextField label={t.form.labelName} value={name} onChange={e => setName(e.target.value)} placeholder={t.form.placeholderName} />
-          <TextField label={t.form.labelCA} type="text" inputMode="numeric" pattern="[0-9]*" value={caNumber} onChange={e => setCaNumber(e.target.value)} placeholder={t.form.placeholderCA} />
+          <TextField
+            label={t.form.labelName}
+            value={name}
+            onChange={e => { setName(sanitizeText(e.target.value)); setFormErrors(prev => ({ ...prev, name: undefined })); }}
+            placeholder={t.form.placeholderName}
+            error={formErrors.name}
+          />
+          <TextField
+            label={t.form.labelCA}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={caNumber}
+            onChange={e => { setCaNumber(sanitizeNumber(e.target.value)); setFormErrors(prev => ({ ...prev, caNumber: undefined })); }}
+            placeholder={t.form.placeholderCA}
+            error={formErrors.caNumber}
+          />
           <div className="grid grid-cols-2 gap-3">
-            <TextField label={t.form.labelMobile} required type="tel" value={mobile} onChange={e => setMobile(e.target.value)} placeholder={t.form.placeholderMobile} />
-            <TextField label={t.form.labelAmount} type="text" inputMode="numeric" pattern="[0-9]*" value={amount} onChange={e => setAmount(e.target.value)} placeholder={t.form.placeholderAmount} />
+            <TextField
+              label={t.form.labelMobile}
+              type="tel"
+              value={mobile}
+              onChange={e => { setMobile(sanitizeNumber(e.target.value)); setFormErrors(prev => ({ ...prev, mobile: undefined })); }}
+              placeholder={t.form.placeholderMobile}
+              error={formErrors.mobile}
+            />
+            <TextField
+              label={t.form.labelAmount}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={amount}
+              onChange={e => setAmount(sanitizeNumber(e.target.value))}
+              placeholder={t.form.placeholderAmount}
+            />
           </div>
           <Select label={t.form.labelGateway} value={gateway} onChange={e => setGateway(e.target.value)} options={[
             { value: 'Bank of Baroda', label: 'Bank of Baroda' },
@@ -1047,7 +1158,7 @@ export function Home() {
             { value: 'HDFC', label: 'HDFC' },
           ]} />
           <div className="pt-1">
-            <Button fullWidth onClick={handleSave} disabled={!name || !caNumber}>
+            <Button fullWidth onClick={handleSave}>
               {editingConsumer ? t.form.update : t.form.save}
             </Button>
           </div>
