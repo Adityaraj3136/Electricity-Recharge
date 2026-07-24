@@ -296,13 +296,13 @@ export function Home() {
             } catch (e) {}
           });
 
-          // Reset injection flag on EVERY page load so we can detect which page loaded
           let lastInjectedUrl = '';
           browser.addEventListener('loadstop', (event: any) => {
             const url = (event.url || '') as string;
-            // Only inject once on the actual searchbill page (after Angular bootstraps)
-            if (!url.includes('searchbill') && !url.includes('cportal')) return;
-            if (url === lastInjectedUrl) return; // already injected on this URL
+            // Deduplicate: don't inject twice for the same URL
+            if (url === lastInjectedUrl) return;
+            // Only inject on the SBPDCL website (not on payment gateway pages)
+            if (!url.includes('sbpdcl.co.in') && !url.includes('cportal')) return;
             lastInjectedUrl = url;
 
             // Wait 3s for Angular to fully render the search form before injecting
