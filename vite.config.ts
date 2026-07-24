@@ -33,5 +33,5 @@ export default defineConfig({
       }
     })
   ],
-  base: '/sbpdcl-family-recharge/', // Useful for GitHub Pages
+  base: '/Electricity-Recharge/', // GitHub Pages repo name
 })
