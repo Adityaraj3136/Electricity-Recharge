@@ -42,6 +42,7 @@ function AppInner() {
       NativeBiometric.verifyIdentity({
         reason: 'For easy log in',
         title: 'Log in',
+        useFallback: true,
       }).then(() => setIsUnlocked(true)).catch(() => {});
     });
   };

@@ -10,7 +10,7 @@ import type { Consumer, BalanceDetails } from '../types';
 import {
   Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search,
   Bolt, Globe, Moon, Sun, Home as HomeIcon, BarChart2, List,
-  HelpCircle, User, Shield, ArrowRight, BookOpen, CreditCard, Hexagon
+  HelpCircle, User, Shield, ArrowRight, BookOpen, CreditCard, Hexagon, Activity
 } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
 import { BalanceModal } from '../components/BalanceModal';
@@ -143,10 +143,10 @@ export function Home() {
   const [caNumber, setCaNumber] = useState('');
   const [mobile, setMobile] = useState('');
   const [amount, setAmount] = useState('');
-  const [gateway, setGateway] = useState('');
+  const [gateway, setGateway] = useState('HDFC');
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isBalanceOpen, setIsBalanceOpen] = useState(false);
@@ -202,7 +202,7 @@ export function Home() {
   }, [iframeConsumer]);
 
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToastMessage(msg);
     setToastType(type);
     setTimeout(() => setToastMessage(null), 3500);
@@ -217,11 +217,14 @@ export function Home() {
 
   const resetForm = () => {
     setName(''); setCaNumber(''); setMobile('');
-    setAmount(''); setGateway(''); setEditingConsumer(null);
+    setAmount(''); setGateway('HDFC'); setEditingConsumer(null);
   };
 
   const handleSave = () => {
-    if (!name || !caNumber) return;
+    if (!name || !caNumber || !mobile) {
+      showToast(lang === 'en' ? 'Please fill all required fields' : 'कृपया सभी आवश्यक फ़ील्ड भरें', 'error');
+      return;
+    }
     const data = { name, caNumber, mobileNumber: mobile, preferredAmount: amount, preferredGateway: gateway as any };
     editingConsumer ? updateConsumer(editingConsumer.id, data) : addConsumer(data);
     setIsAddOpen(false);
@@ -438,13 +441,21 @@ export function Home() {
             if (pollInterval) clearInterval(pollInterval);
             if (!done) { done = true; setIsBalanceLoading(false); setIsBalanceOpen(false); }
           });
-
-          // Safety timeout: give up after 60s
-          setTimeout(() => finish(false, null, 'Timed out fetching balance'), 60000);
-
-        } else { showToast(t.toast.browserError, 'error'); setIsBalanceOpen(false); }
+      } else { showToast(t.toast.browserError, 'error'); setIsBalanceOpen(false); }
       } else { showToast(t.toast.balanceOnly, 'error'); }
     });
+  };
+
+  const handleQuickAction = (actionFn: (consumer: Consumer) => void) => {
+    if (consumers.length === 1) {
+      actionFn(consumers[0]);
+    } else if (consumers.length > 1) {
+      setActiveTab('meters');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      showToast(lang === 'en' ? 'Select a meter' : 'एक मीटर चुनें', 'info');
+    } else {
+      showToast(lang === 'en' ? 'Add a meter first' : 'पहले मीटर जोड़ें', 'error');
+    }
   };
 
 
@@ -457,9 +468,9 @@ export function Home() {
 
   // ─── Quick actions data ─────────────────────────────────────────────────
   const quickActions = [
-    { icon: <BookOpen size={22} className="text-blue-600"/>, label: lang === 'en' ? 'Save CA Number' : 'CA नंबर सेव', desc: lang === 'en' ? 'Save for faster recharge' : 'जल्द रिचार्ज के लिए', color: 'bg-blue-50 dark:bg-blue-900/20', onClick: () => { resetForm(); setIsAddOpen(true); } },
-    { icon: <Zap size={22} className="text-purple-600"/>, label: lang === 'en' ? 'Auto Fill Form' : 'फॉर्म भरें', desc: lang === 'en' ? 'Quick & easy' : 'जल्दी और आसान', color: 'bg-purple-50 dark:bg-purple-900/20', onClick: () => consumers.length ? handleRecharge(consumers[0]) : showToast(lang === 'en' ? 'Add a meter first' : 'पहले मीटर जोड़ें', 'error') },
-    { icon: <CreditCard size={22} className="text-green-600"/>, label: lang === 'en' ? 'Pay via UPI' : 'UPI से भुगतान', desc: lang === 'en' ? 'Multiple payment options' : 'अनेक विकल्प', color: 'bg-green-50 dark:bg-green-900/20', onClick: () => consumers.length ? handleRecharge(consumers[0]) : showToast(lang === 'en' ? 'Add a meter first' : 'पहले मीटर जोड़ें', 'error') },
+    { icon: <BookOpen size={22} className="text-blue-600"/>, label: lang === 'en' ? 'Save CA Number' : 'CA नंबर सेव करें', desc: lang === 'en' ? 'Save for faster recharge' : 'तेज रिचार्ज के लिए', color: 'bg-blue-50 dark:bg-blue-900/20', onClick: () => { resetForm(); setIsAddOpen(true); } },
+    { icon: <Activity size={22} className="text-purple-600"/>, label: lang === 'en' ? 'Check Balance' : 'बैलेंस जांचें', desc: lang === 'en' ? 'View live dues' : 'बकाया देखें', color: 'bg-purple-50 dark:bg-purple-900/20', onClick: () => handleQuickAction(handleCheckBalance) },
+    { icon: <CreditCard size={22} className="text-green-600"/>, label: lang === 'en' ? 'Pay via UPI' : 'UPI से भुगतान', desc: lang === 'en' ? 'Multiple payment options' : 'भुगतान विकल्प', color: 'bg-green-50 dark:bg-green-900/20', onClick: () => handleQuickAction(handleRecharge) },
   ];
 
   // ─── How it works steps ─────────────────────────────────────────────────
@@ -686,7 +697,7 @@ export function Home() {
                                 setCaNumber(consumer.caNumber);
                                 setMobile(consumer.mobileNumber || '');
                                 setAmount(consumer.preferredAmount || '');
-                                setGateway(consumer.preferredGateway || '');
+                                setGateway(consumer.preferredGateway || 'HDFC');
                                 setIsAddOpen(true);
                                 setActionMenuId(null);
                               }}
@@ -798,7 +809,7 @@ export function Home() {
                               setCaNumber(consumer.caNumber);
                               setMobile(consumer.mobileNumber || '');
                               setAmount(consumer.preferredAmount || '');
-                              setGateway(consumer.preferredGateway || '');
+                              setGateway(consumer.preferredGateway || 'HDFC');
                               setIsAddOpen(true); 
                               setActionMenuId(null); 
                             }}
@@ -1027,7 +1038,7 @@ export function Home() {
           <TextField label={t.form.labelName} value={name} onChange={e => setName(e.target.value)} placeholder={t.form.placeholderName} />
           <TextField label={t.form.labelCA} type="text" inputMode="numeric" pattern="[0-9]*" value={caNumber} onChange={e => setCaNumber(e.target.value)} placeholder={t.form.placeholderCA} />
           <div className="grid grid-cols-2 gap-3">
-            <TextField label={t.form.labelMobile} type="tel" value={mobile} onChange={e => setMobile(e.target.value)} placeholder={t.form.placeholderMobile} />
+            <TextField label={t.form.labelMobile} required type="tel" value={mobile} onChange={e => setMobile(e.target.value)} placeholder={t.form.placeholderMobile} />
             <TextField label={t.form.labelAmount} type="text" inputMode="numeric" pattern="[0-9]*" value={amount} onChange={e => setAmount(e.target.value)} placeholder={t.form.placeholderAmount} />
           </div>
           <Select label={t.form.labelGateway} value={gateway} onChange={e => setGateway(e.target.value)} options={[

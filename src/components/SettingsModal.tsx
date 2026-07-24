@@ -28,8 +28,8 @@ async function ensureNotificationChannel() {
   try {
     await LocalNotifications.createChannel({
       id: 'bijli_reminder',
-      name: 'Monthly Recharge Reminder',
-      description: 'Monthly electricity recharge reminder notifications',
+      name: 'Low Balance Reminder',
+      description: 'Low balance reminder notifications',
       importance: 4,          // HIGH — shows heads-up, makes sound
       visibility: 1,          // PUBLIC
       sound: 'default',
@@ -81,8 +81,8 @@ async function scheduleMonthlyReminder(day: number) {
     notifications: [
       {
         id: 101,
-        title: '⚡ Bijli Recharge Reminder',
-        body: "Don't forget to check your electricity balance and recharge today!",
+        title: '⚡ Low Balance Reminder',
+        body: "Your electricity balance might be low. Don't forget to check and recharge today!",
         channelId: 'bijli_reminder',   // Android 8+ channel
         schedule: {
           at: next,                    // Exact date-time — works Android 10-16
@@ -139,6 +139,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         await NativeBiometric.verifyIdentity({
           reason: 'Verify to enable App Lock',
           title: 'Enable App Lock',
+          useFallback: true,
         });
         updateSettings({ biometricLock: true });
       } catch {
@@ -297,11 +298,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <div className="flex items-center gap-3 text-gray-700 dark:text-gray-200">
                 {settings.reminderEnabled ? <Bell size={20} className="text-primary-500" /> : <BellOff size={20} />}
                 <div>
-                  <span className="font-medium block">Monthly Reminder</span>
+                  <span className="font-medium block">Low Balance Reminder</span>
                   <span className="text-xs text-gray-400 dark:text-gray-500">
                     {settings.reminderEnabled
                       ? `Scheduled on day ${settings.reminderDay} of each month`
-                      : 'Remind me to recharge each month'}
+                      : 'Remind me when balance is low'}
                   </span>
                 </div>
               </div>
