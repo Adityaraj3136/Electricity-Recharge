@@ -237,20 +237,14 @@ export const automationScript = `
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Loading consumer' }, '*');
       await waitForConsumer();
 
-      if (config.mobileNumber) {
-        window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Filling mobile' }, '*');
-        await fillMobile(config.mobileNumber);
-      }
+      // 1. Fill Mobile Number (Compulsory)
+      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Filling mobile' }, '*');
+      await fillMobile(config.mobileNumber || '9999999999');
 
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting amount' }, '*');
-      if (config.amount) {
-        await selectAmount(config.amount);
-      } else {
-        await waitForUserAmount(); // wait up to 10s for user
-      }
-
+      // 2. Select Gateway (Compulsory to enable Pay Now)
+      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting Gateway' }, '*');
+      let targetImg = null;
       if (config.gateway) {
-        window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting Gateway' }, '*');
         let imgAltMatch = '';
         if (config.gateway === 'Bank of Baroda') imgAltMatch = 'Bank Of Baroda';
         else if (config.gateway === 'Federal Bank') imgAltMatch = 'Federal Bank';
@@ -258,17 +252,34 @@ export const automationScript = `
         
         if (imgAltMatch) {
           const allImgs = Array.from(document.querySelectorAll('mat-radio-button img'));
-          const targetImg = allImgs.find(img => (img.alt || '').toLowerCase().includes(imgAltMatch.toLowerCase()));
-          if (targetImg) {
-            const radioBtn = targetImg.closest('mat-radio-button');
-            if (radioBtn) {
-              radioBtn.click();
-              await wait(500);
-            }
-          }
+          targetImg = allImgs.find(img => (img.alt || '').toLowerCase().includes(imgAltMatch.toLowerCase()));
+        }
+      }
+      
+      // Fallback: pick the first one if user didn't specify or it wasn't found
+      if (!targetImg) {
+        targetImg = document.querySelector('mat-radio-button img');
+      }
+
+      if (targetImg) {
+        const radioBtn = targetImg.closest('mat-radio-button');
+        if (radioBtn) {
+          // In Angular Material, clicking the label usually correctly triggers the radio
+          const label = radioBtn.querySelector('label') || radioBtn;
+          label.click();
+          await wait(800);
         }
       }
 
+      // 3. Select Amount
+      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting amount' }, '*');
+      if (config.amount) {
+        await selectAmount(config.amount);
+      } else {
+        await waitForUserAmount(); // wait up to 10s for user
+      }
+
+      // 4. Open Payment
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Opening payment' }, '*');
       await clickPayNow();
 
