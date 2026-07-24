@@ -375,9 +375,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 Up to date
               </span>
             </div>
-            <p className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed">
-              📲 To get the latest update, contact the developer. New features and bug fixes are rolled out regularly.
-            </p>
+            <button
+              onClick={() => window.open('https://adityaraj3136.github.io/contact/', '_blank')}
+              className="w-full mt-2 py-2.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-lg text-sm font-semibold hover:bg-primary-200 dark:hover:bg-primary-800/40 transition-colors"
+            >
+              Contact Developer for Updates
+            </button>
           </div>
         </section>
 
