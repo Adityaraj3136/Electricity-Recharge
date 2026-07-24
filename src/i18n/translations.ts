@@ -27,6 +27,7 @@ export const translations = {
       step2Desc: 'App fills SBPDCL form automatically for you.',
       step3Title: 'Pay via UPI',
       step3Desc: 'Scan QR code and complete payment in seconds.',
+      disclaimer: 'Disclaimer: This application is built to make the recharge process easy for users. It is NOT an official app of South Bihar Power Distribution Company (SBPDCL).',
     },
     form: {
       addTitle: 'Add New Meter',
@@ -82,6 +83,7 @@ export const translations = {
       step2Desc: 'ऐप आपके लिए SBPDCL फॉर्म अपने आप भरता है।',
       step3Title: 'UPI से भुगतान करें',
       step3Desc: 'QR कोड स्कैन करें और कुछ सेकंड में भुगतान करें।',
+      disclaimer: 'अस्वीकरण: यह एप्लिकेशन उपयोगकर्ताओं के लिए रिचार्ज प्रक्रिया को आसान बनाने के लिए बनाया गया है। यह साउथ बिहार पावर डिस्ट्रीब्यूशन कंपनी (SBPDCL) का आधिकारिक ऐप नहीं है।',
     },
     form: {
       addTitle: 'नया मीटर जोड़ें',

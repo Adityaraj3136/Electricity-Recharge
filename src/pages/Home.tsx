@@ -442,6 +442,12 @@ export function Home() {
             </div>
           </section>
         )}
+        {/* Disclaimer */}
+        <div className="mt-8 mb-6 px-2">
+          <p className="text-[11px] text-gray-400 text-center leading-relaxed font-medium">
+            {t.home.disclaimer}
+          </p>
+        </div>
       </main>
 
       {/* ─── FAB ─── */}
