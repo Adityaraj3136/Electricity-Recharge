@@ -186,8 +186,12 @@ export function Home() {
             }
           }, 1500);
         } catch (e) {
-          window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
-          setIframeConsumer(null);
+          // Cross-origin block in standard desktop browsers. 
+          // We cannot inject scripts into a cross-origin iframe.
+          // Fall back to keeping the iframe open and copying CA to clipboard.
+          navigator.clipboard.writeText(iframeConsumer.caNumber)
+            .then(() => showToast('CA Number copied! Desktop browsers block auto-fill for security. Please paste manually.', 'success'))
+            .catch(() => showToast('Desktop browsers block auto-fill for security. Please enter manually.', 'error'));
         }
       }, 3000);
     };
