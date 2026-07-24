@@ -114,28 +114,36 @@ export const automationScript = `
     btn.click();
   }
 
-  // ── WAIT FOR USER to click Yes on confirmation modal ──────────────────────
-  // We detect the modal by its Yes button (btn-danger), then wait for it to
-  // disappear — meaning the user clicked Yes and the gateway is loading.
+  // ── WAIT FOR USER to click Yes/No on confirmation modal ──────────────────
+  // Returns true if user clicked Yes, false if No (or timed out).
   async function waitForUserConfirmation() {
     // 1. Wait for confirmation modal to appear
     try {
       await waitForElement('button.btn-danger', [], 'Yes', 10000);
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Opening payment' }, '*');
     } catch(e) {
-      // Modal may not appear or already dismissed
-      return;
+      return true; // Modal didn't appear — proceed anyway
     }
-    // 2. Wait for modal to disappear (user clicked Yes or No)
-    return new Promise(resolve => {
-      const deadline = Date.now() + 60000; // wait up to 60s
+
+    // 2. Wait for modal to close (user clicked Yes or No)
+    await new Promise(resolve => {
+      const deadline = Date.now() + 60000;
       function check() {
         const modal = document.querySelector('button.btn-danger');
-        if (!modal || Date.now() >= deadline) resolve();
+        if (!modal || Date.now() >= deadline) resolve(undefined);
         else setTimeout(check, 300);
       }
       check();
     });
+
+    // 3. Detect Yes vs No:
+    //    Pay Now still visible → user clicked No (still on SBPDCL page)
+    //    Pay Now gone         → user clicked Yes (navigating to payment gateway)
+    await wait(400);
+    const payNowStillVisible = Array.from(document.querySelectorAll('button'))
+      .some(b => b.textContent && b.textContent.trim().includes('Pay Now'));
+
+    return !payNowStillVisible; // true = Yes, false = No
   }
 
   // ── PAYMENT GATEWAY (Juspay) ──────────────────────────────────────────────
@@ -238,8 +246,13 @@ export const automationScript = `
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Opening payment' }, '*');
       await clickPayNow();
 
-      // Wait for user to tap Yes on confirmation popup
-      await waitForUserConfirmation();
+      // Wait for user to tap Yes/No on confirmation popup
+      const confirmed = await waitForUserConfirmation();
+      if (!confirmed) {
+        // User clicked No — stop automation, let them stay on the page
+        window.postMessage({ type: 'SBPDCL_ERROR', error: 'Payment cancelled by user.' }, '*');
+        return;
+      }
 
       // Wait for Juspay payment gateway to load
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting gateway' }, '*');
