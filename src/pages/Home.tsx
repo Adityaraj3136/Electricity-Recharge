@@ -214,7 +214,7 @@ export function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 font-sans">
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300">
 
       {/* ─── HERO HEADER ─── */}
       <header className="relative overflow-hidden hero-mesh text-white pt-safe">
@@ -281,7 +281,7 @@ export function Home() {
         </div>
 
         {/* Curved bottom edge */}
-        <div className="h-6 bg-slate-50 rounded-t-[2rem] -mb-px relative z-10" />
+        <div className="h-6 bg-slate-50 dark:bg-slate-950 rounded-t-[2rem] -mb-px relative z-10" />
       </header>
 
       {/* ─── MAIN CONTENT ─── */}
@@ -290,19 +290,19 @@ export function Home() {
         {/* How it works — only when no consumers */}
         {consumers.length === 0 && (
           <section className="mb-6">
-            <h2 className="text-base font-bold text-gray-700 mb-3">{t.home.statsTitle}</h2>
+            <h2 className="text-base font-bold text-gray-700 dark:text-gray-300 mb-3">{t.home.statsTitle}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[
-                { num: '1', title: t.home.step1Title, desc: t.home.step1Desc, color: 'bg-violet-50 border-violet-100' },
-                { num: '2', title: t.home.step2Title, desc: t.home.step2Desc, color: 'bg-indigo-50 border-indigo-100' },
-                { num: '3', title: t.home.step3Title, desc: t.home.step3Desc, color: 'bg-emerald-50 border-emerald-100' },
+                { num: '1', title: t.home.step1Title, desc: t.home.step1Desc, color: 'bg-violet-50 dark:bg-violet-900/20 border-violet-100 dark:border-violet-800' },
+                { num: '2', title: t.home.step2Title, desc: t.home.step2Desc, color: 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800' },
+                { num: '3', title: t.home.step3Title, desc: t.home.step3Desc, color: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800' },
               ].map((step) => (
                 <div key={step.num} className={`rounded-2xl border p-4 ${step.color}`}>
                   <div className="w-7 h-7 premium-gradient rounded-full flex items-center justify-center text-white font-bold text-sm mb-2">
                     {step.num}
                   </div>
-                  <h3 className="font-semibold text-gray-900 text-sm mb-1">{step.title}</h3>
-                  <p className="text-gray-500 text-xs leading-relaxed">{step.desc}</p>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-1">{step.title}</h3>
+                  <p className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed">{step.desc}</p>
                 </div>
               ))}
             </div>
@@ -312,8 +312,8 @@ export function Home() {
         {/* Saved Meters Section */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-gray-800">{t.home.savedMeters}</h2>
-            <span className="text-xs text-gray-400 font-medium bg-gray-100 rounded-full px-2.5 py-1">
+            <h2 className="text-base font-bold text-gray-800 dark:text-gray-200">{t.home.savedMeters}</h2>
+            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium bg-gray-100 dark:bg-slate-800 rounded-full px-2.5 py-1">
               {consumers.length} {lang === 'en' ? 'saved' : 'सहेजे'}
             </span>
           </div>
@@ -394,7 +394,7 @@ export function Home() {
                   {/* Mobile amount badge */}
                   {consumer.preferredAmount && (
                     <div className="sm:hidden px-4 pb-1">
-                      <span className="text-xs font-bold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-2.5 py-0.5">
+                      <span className="text-xs font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 border border-primary-100 dark:border-primary-800 rounded-full px-2.5 py-0.5">
                         Default: ₹{consumer.preferredAmount}
                       </span>
                     </div>
@@ -471,13 +471,13 @@ export function Home() {
       >
         <div className="flex flex-col gap-4">
           {/* Form intro */}
-          <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-primary-50 to-indigo-50 rounded-xl border border-primary-100">
+          <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-primary-50 to-indigo-50 dark:from-primary-900/30 dark:to-indigo-900/30 rounded-xl border border-primary-100 dark:border-primary-800">
             <div className="w-9 h-9 premium-gradient rounded-xl flex items-center justify-center flex-shrink-0">
               <Bolt size={18} className="text-yellow-300 fill-yellow-300" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-primary-700 uppercase tracking-wide">SBPDCL Portal</p>
-              <p className="text-xs text-gray-500 leading-tight mt-0.5">
+              <p className="text-xs font-semibold text-primary-700 dark:text-primary-300 uppercase tracking-wide">SBPDCL Portal</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight mt-0.5">
                 {lang === 'en'
                   ? 'South Bihar Power Distribution Company'
                   : 'दक्षिण बिहार विद्युत वितरण कंपनी'}

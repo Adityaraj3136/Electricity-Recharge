@@ -9,6 +9,9 @@ export interface Consumer {
 
 export interface AppSettings {
   darkMode: boolean;
+  biometricLock: boolean;
+  reminderEnabled: boolean;
+  reminderDay: number;
 }
 
 export type AutomationStep = 

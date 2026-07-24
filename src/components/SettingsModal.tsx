@@ -7,6 +7,14 @@ import { Download, Upload, Moon, Sun, Info, Shield, ChevronRight, Lock, Bell, Be
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 
+const isNative = () => {
+  try {
+    return !!(window as any).Capacitor?.isNativePlatform?.();
+  } catch {
+    return false;
+  }
+};
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -140,18 +148,23 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             </button>
 
-            <button 
-              onClick={toggleBiometric}
-              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-            >
-              <div className="flex items-center gap-3 text-gray-700 dark:text-gray-200">
-                <Lock size={20} />
-                <span className="font-medium">Biometric App Lock</span>
-              </div>
-              <div className={`w-12 h-6 rounded-full transition-colors flex items-center p-1 ${settings.biometricLock ? 'bg-primary-600' : 'bg-gray-300 dark:bg-slate-600'}`}>
-                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${settings.biometricLock ? 'translate-x-6' : 'translate-x-0'}`} />
-              </div>
-            </button>
+            {isNative() && (
+              <button 
+                onClick={toggleBiometric}
+                className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              >
+                <div className="flex items-center gap-3 text-gray-700 dark:text-gray-200">
+                  <Lock size={20} />
+                  <div>
+                    <span className="font-medium block">Biometric App Lock</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">Fingerprint / Face unlock</span>
+                  </div>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-colors flex items-center p-1 ${settings.biometricLock ? 'bg-primary-600' : 'bg-gray-300 dark:bg-slate-600'}`}>
+                  <div className={`w-4 h-4 bg-white rounded-full transition-transform ${settings.biometricLock ? 'translate-x-6' : 'translate-x-0'}`} />
+                </div>
+              </button>
+            )}
           </div>
         </section>
 

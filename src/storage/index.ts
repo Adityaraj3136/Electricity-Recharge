@@ -40,7 +40,12 @@ export const storage = {
   },
 
   getSettings: (): AppSettings => {
-    const defaultSettings: AppSettings = { darkMode: false };
+    const defaultSettings: AppSettings = { 
+      darkMode: false,
+      biometricLock: false,
+      reminderEnabled: false,
+      reminderDay: 1
+    };
     try {
       const data = localStorage.getItem(SETTINGS_KEY);
       return data ? { ...defaultSettings, ...JSON.parse(data) } : defaultSettings;
