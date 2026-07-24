@@ -5,7 +5,7 @@ import { useSettings } from '../hooks/useSettings';
 import { storage } from '../storage';
 import {
   Download, Upload, Moon, Sun, Info, Shield,
-  ChevronRight, Lock, Bell, BellOff, AlertTriangle, CheckCircle2, Type
+  ChevronRight, Lock, Bell, BellOff, AlertTriangle, CheckCircle2, Type, Trash2
 } from 'lucide-react';
 import { useLang } from '../hooks/useLang';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -234,6 +234,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
+  const handleClearData = () => {
+    if (window.confirm("Are you sure you want to completely erase all saved meters, settings, and app data? This action cannot be undone.")) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
+
   // ─── Toggle Component ──────────────────────────────────────────────────────
   const Toggle = ({ active }: { active: boolean }) => (
     <div className={`w-12 h-6 rounded-full transition-colors duration-200 flex items-center p-1 ${active ? 'bg-primary-600' : 'bg-gray-300 dark:bg-[#253350]'}`}>
@@ -450,6 +457,21 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             >
               Contact Developer for Updates
             </button>
+          </div>
+        </section>
+
+        {/* ── Danger Zone ─────────────────────────────────────── */}
+        <section>
+          <h3 className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-3">
+            Danger Zone
+          </h3>
+          <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl p-2">
+            <RowBtn onClick={handleClearData}>
+              <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+                <Trash2 size={20} />
+                <span className="font-medium">Clear All App Data</span>
+              </div>
+            </RowBtn>
           </div>
         </section>
 

@@ -1165,7 +1165,7 @@ export function Home() {
 
           {[
             { icon: <HelpCircle size={22} />, label: lang === 'en' ? 'Help' : 'सहायता', onClick: () => setIsHelpOpen(true) },
-            { icon: <User size={22} />, label: lang === 'en' ? 'Profile' : 'प्रोफ़ाइल', onClick: () => setIsSettingsOpen(true) },
+            { icon: <Settings size={22} />, label: lang === 'en' ? 'Settings' : 'सेटिंग्स', onClick: () => setIsSettingsOpen(true) },
           ].map((item) => (
             <button
               key={item.label}
