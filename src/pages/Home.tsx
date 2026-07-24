@@ -10,7 +10,7 @@ import type { Consumer, BalanceDetails } from '../types';
 import {
   Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search,
   Bolt, Globe, Moon, Sun, Home as HomeIcon, BarChart2,
-  HelpCircle, User, Shield, ArrowRight, BookOpen, CreditCard
+  HelpCircle, User, Shield, ArrowRight, BookOpen, CreditCard, Hexagon
 } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
 import { BalanceModal } from '../components/BalanceModal';
@@ -256,7 +256,7 @@ export function Home() {
         {/* Logo */}
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-md shadow-primary-500/30">
-            <Bolt size={16} className="text-yellow-300 fill-yellow-300" />
+            <Hexagon size={16} className="text-yellow-400 fill-yellow-400" />
           </div>
           <span className={`font-bold text-lg tracking-tight ${textPrimary}`}>{t.appName}</span>
         </div>
@@ -319,7 +319,7 @@ export function Home() {
       <header className={`md:hidden flex items-center justify-between px-4 py-3 ${sectionBg} border-b ${isDark ? 'border-[#253350]' : 'border-gray-100'} sticky top-0 z-40`} style={{ paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))' }}>
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center">
-            <Bolt size={14} className="text-yellow-300 fill-yellow-300" />
+            <Hexagon size={14} className="text-yellow-400 fill-yellow-400" />
           </div>
           <span className={`font-bold text-base ${textPrimary}`}>{t.appName}</span>
         </div>
@@ -350,27 +350,27 @@ export function Home() {
             </p>
             <h1 className={`text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight mb-2 ${textPrimary}`}>
               {lang === 'en' ? (
-                <>Smart Electricity<br /><span className="text-primary-600">Recharge</span></>
+                <>Smart Bihar Electricity<br /><span className="text-primary-600">Recharge</span></>
               ) : (
-                <>स्मार्ट बिजली<br /><span className="text-primary-600">रिचार्ज</span></>
+                <>स्मार्ट बिहार बिजली<br /><span className="text-primary-600">रिचार्ज</span></>
               )}
             </h1>
             <p className={`text-sm sm:text-base mb-6 ${textSecondary}`}>
-              {lang === 'en' ? 'Fast. Secure. Reliable.' : 'तेज़। सुरक्षित। विश्वसनीय।'}
+              {lang === 'en' ? 'Fast. Secure. Reliable.' : 'बिजली रिचार्ज करना हुआ आसान।'}
             </p>
 
             {/* Feature badges */}
-            <div className="flex flex-wrap justify-center md:justify-start gap-3">
+            <div className="flex justify-center md:justify-start gap-2 sm:gap-3">
               {[
-                { icon: <Bolt size={15} className="text-yellow-500 fill-yellow-500"/>, label: lang === 'en' ? 'Instant' : 'तुरंत', sub: lang === 'en' ? 'Recharge' : 'रिचार्ज' },
-                { icon: <Shield size={15} className="text-green-500"/>, label: lang === 'en' ? '100%' : '१००%', sub: lang === 'en' ? 'Secure' : 'सुरक्षित' },
-                { icon: <BarChart2 size={15} className="text-blue-500"/>, label: lang === 'en' ? 'Live' : 'लाइव', sub: lang === 'en' ? 'Balance' : 'बैलेंस' },
+                { icon: <Hexagon size={16} className="text-yellow-500 fill-yellow-500"/>, label: lang === 'en' ? 'Instant' : 'तुरंत', sub: lang === 'en' ? 'Recharge' : 'रिचार्ज' },
+                { icon: <Shield size={16} className="text-green-500"/>, label: lang === 'en' ? '100%' : '१००%', sub: lang === 'en' ? 'Secure' : 'सुरक्षित' },
+                { icon: <BarChart2 size={16} className="text-blue-500"/>, label: lang === 'en' ? 'Live' : 'लाइव', sub: lang === 'en' ? 'Balance' : 'बैलेंस' },
               ].map((item, i) => (
-                <div key={i} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border shadow-sm ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
+                <div key={i} className={`flex flex-col sm:flex-row items-center gap-1 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-2xl border shadow-sm ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
                   {item.icon}
-                  <div>
-                    <p className={`text-xs font-bold leading-none ${textPrimary}`}>{item.label}</p>
-                    <p className={`text-[10px] leading-none mt-0.5 ${textSecondary}`}>{item.sub}</p>
+                  <div className="text-center sm:text-left">
+                    <p className={`text-[11px] sm:text-xs font-bold leading-none ${textPrimary}`}>{item.label}</p>
+                    <p className={`text-[9px] sm:text-[10px] leading-none mt-1 sm:mt-0.5 ${textSecondary}`}>{item.sub}</p>
                   </div>
                 </div>
               ))}
@@ -590,7 +590,7 @@ export function Home() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center">
-                  <Bolt size={14} className="text-yellow-300 fill-yellow-300" />
+                  <Hexagon size={14} className="text-yellow-400 fill-yellow-400" />
                 </div>
                 <span className="font-bold text-white text-base">{t.appName}</span>
               </div>
@@ -654,7 +654,7 @@ export function Home() {
             onClick={() => { resetForm(); setIsAddOpen(true); }}
             className="-mt-5 w-14 h-14 bg-primary-600 hover:bg-primary-700 text-white rounded-full flex items-center justify-center shadow-xl shadow-primary-500/40 active:scale-95 transition-all border-4 border-white dark:border-[#162033]"
           >
-            <Bolt size={22} className="text-yellow-300 fill-yellow-300" />
+            <Hexagon size={22} className="text-yellow-400 fill-yellow-400" />
           </button>
 
           {[
@@ -680,7 +680,7 @@ export function Home() {
         <div className="flex flex-col gap-4">
           <div className={`flex items-center gap-3 p-3 rounded-xl border ${isDark ? 'bg-primary-900/30 border-primary-800' : 'bg-gradient-to-r from-primary-50 to-indigo-50 border-primary-100'}`}>
             <div className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Bolt size={18} className="text-yellow-300 fill-yellow-300" />
+              <Hexagon size={18} className="text-yellow-400 fill-yellow-400" />
             </div>
             <div>
               <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-primary-300' : 'text-primary-700'}`}>SBPDCL Portal</p>
