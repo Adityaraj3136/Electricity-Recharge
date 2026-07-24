@@ -30,8 +30,9 @@ function AppInner() {
         NativeBiometric.verifyIdentity({
           reason: 'For easy log in',
           title: 'Log in',
-          subtitle: 'Use your biometric to log in',
+          subtitle: 'Use your biometric or PIN to log in',
           description: 'Please authenticate to access Bijli Recharge',
+          useFallback: true,
         }).then(() => setIsUnlocked(true))
           .catch(() => {}); // Stay locked
       });
