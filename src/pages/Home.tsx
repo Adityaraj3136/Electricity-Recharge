@@ -933,48 +933,18 @@ export function Home() {
       {/* ════════════════════════════════════════════════════════
           DESKTOP FOOTER
       ════════════════════════════════════════════════════════ */}
-      <footer className={`hidden md:block border-t ${isDark ? 'bg-[#0a1120] border-[#253350]' : 'bg-[#1a237e]'}`}>
-        <div className="max-w-6xl mx-auto px-10 py-10">
-          <div className="grid grid-cols-4 gap-8">
-            {/* Brand */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <AppLogo className="w-7 h-7 bg-primary-600 rounded-lg" />
-                <span className="font-bold text-white text-base">{t.appName}</span>
-              </div>
-              <p className="text-blue-300 text-xs leading-relaxed">
-                {lang === 'en' ? 'Smart way to manage your electricity recharge.' : 'बिजली रिचार्ज प्रबंधन का स्मार्ट तरीका।'}
-              </p>
-            </div>
-            {/* Quick Links */}
-            <div>
-              <h4 className="text-white font-semibold text-sm mb-3">{lang === 'en' ? 'Quick Links' : 'त्वरित लिंक'}</h4>
-              <button onClick={() => window.scrollTo(0, 0)} className="block text-blue-300 text-xs hover:text-white mb-1.5 transition-colors text-left">{lang === 'en' ? 'Home' : 'होम'}</button>
-              <button onClick={() => setIsHelpOpen(true)} className="block text-blue-300 text-xs hover:text-white mb-1.5 transition-colors text-left">{lang === 'en' ? 'Help' : 'सहायता'}</button>
-              <button onClick={() => showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!')} className="block text-blue-300 text-xs hover:text-white mb-1.5 transition-colors text-left">{lang === 'en' ? 'About' : 'के बारे में'}</button>
-            </div>
-            {/* Support */}
-            <div>
-              <h4 className="text-white font-semibold text-sm mb-3">{lang === 'en' ? 'Support' : 'सहायता'}</h4>
-              {['FAQs', lang === 'en' ? 'Contact Us' : 'हमसे संपर्क करें', lang === 'en' ? 'Privacy Policy' : 'गोपनीयता नीति', lang === 'en' ? 'Terms & Conditions' : 'नियम और शर्तें'].map(l => (
-                <button key={l} className="block text-blue-300 text-xs hover:text-white mb-1.5 transition-colors text-left">{l}</button>
-              ))}
-            </div>
-            {/* Social */}
-            <div>
-              <h4 className="text-white font-semibold text-sm mb-3">{lang === 'en' ? 'Connect with us' : 'हमसे जुड़ें'}</h4>
-              <div className="flex gap-2">
-                {['f', 't', 'in'].map((s) => (
-                  <button key={s} className="w-8 h-8 bg-blue-700 hover:bg-primary-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors">
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
+      <footer className={`hidden md:block border-t py-5 ${isDark ? 'bg-[#0a1120] border-[#253350]' : 'bg-white border-gray-100'}`}>
+        <div className="max-w-6xl mx-auto px-8 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AppLogo className="w-5 h-5 bg-primary-600 rounded-md" />
+            <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{t.appName}</span>
           </div>
-          <div className="border-t border-blue-800 mt-8 pt-4 text-center">
-            <p className="text-blue-400 text-xs">© 2026 Bijli Recharge. All rights reserved.</p>
+          <div className="flex items-center gap-6">
+            <button onClick={() => window.scrollTo(0, 0)} className={`text-xs font-medium transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>{lang === 'en' ? 'Home' : 'होम'}</button>
+            <button onClick={() => setIsHelpOpen(true)} className={`text-xs font-medium transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>{lang === 'en' ? 'Help' : 'सहायता'}</button>
+            <button onClick={() => showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!')} className={`text-xs font-medium transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>{lang === 'en' ? 'Privacy' : 'गोपनीयता'}</button>
           </div>
+          <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>© 2026 {t.appName}.</p>
         </div>
       </footer>
 
