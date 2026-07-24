@@ -200,7 +200,7 @@ export function Home() {
           );
           browser.addEventListener('loadstop', () => {
             browser.executeScript({ code: automationScript });
-            setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.runSbpdclAutomation==='function') window.runSbpdclAutomation('${consumer.caNumber}','${consumer.mobileNumber||''}','${consumer.preferredAmount||''}'); },1500);` }), 500);
+            setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.startSbpdclAutomation==='function') window.startSbpdclAutomation({caNumber: '${consumer.caNumber}', mobileNumber: '${consumer.mobileNumber || ''}', amount: '${consumer.preferredAmount || ''}'}); },1500);` }), 500);
           });
         } else { window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank'); }
       } else {
