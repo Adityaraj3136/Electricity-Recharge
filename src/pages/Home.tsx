@@ -198,7 +198,10 @@ export function Home() {
              'closebuttoncolor=#ffffff','hidenavigationbuttons=yes','hideurlbar=yes',
              'zoom=no','clearcache=yes','clearsessioncache=yes','hardwareback=yes'].join(',')
           );
+          let scriptInjected = false;
           browser.addEventListener('loadstop', () => {
+            if (scriptInjected) return;
+            scriptInjected = true;
             browser.executeScript({ code: automationScript });
             setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.startSbpdclAutomation==='function') window.startSbpdclAutomation({caNumber: '${consumer.caNumber}', mobileNumber: '${consumer.mobileNumber || ''}', amount: '${consumer.preferredAmount || ''}'}); },1500);` }), 500);
           });
@@ -226,7 +229,10 @@ export function Home() {
               else if (data.type === 'BALANCE_ERROR') { showToast(`Error: ${data.error}`, 'error'); setIsBalanceOpen(false); browser.close(); }
             } catch (e) {}
           });
+          let balanceScriptInjected = false;
           browser.addEventListener('loadstop', () => {
+            if (balanceScriptInjected) return;
+            balanceScriptInjected = true;
             browser.executeScript({ code: automationScript });
             setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.fetchSbpdclBalance==='function') window.fetchSbpdclBalance('${consumer.caNumber}'); },1500);` }), 500);
           });
