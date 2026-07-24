@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useConsumers } from '../hooks/useConsumers';
 import { useLang } from '../hooks/useLang';
 import { useSettings } from '../hooks/useSettings';
@@ -153,6 +153,48 @@ export function Home() {
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [balanceDetails, setBalanceDetails] = useState<BalanceDetails | null>(null);
   const [activeTab, setActiveTab] = useState<'home' | 'meters'>('home');
+  const [iframeConsumer, setIframeConsumer] = useState<Consumer | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Inject automation into desktop iframe when consumer is set
+  useEffect(() => {
+    if (!iframeConsumer) return;
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    let injected = false;
+    const handleLoad = () => {
+      if (injected) return;
+      setTimeout(() => {
+        try {
+          const iframeWin = iframe.contentWindow as any;
+          if (!iframeWin) return;
+          injected = true;
+          const scriptEl = iframeWin.document.createElement('script');
+          const rawScript = automationScript
+            .replace('export const automationScript = `', '')
+            .replace(/`;\s*$/, '');
+          scriptEl.textContent = rawScript;
+          iframeWin.document.head.appendChild(scriptEl);
+          setTimeout(() => {
+            if (typeof iframeWin.startSbpdclAutomation === 'function') {
+              iframeWin.startSbpdclAutomation({
+                caNumber: iframeConsumer.caNumber,
+                mobileNumber: iframeConsumer.mobileNumber || '',
+                amount: iframeConsumer.preferredAmount || '',
+                gateway: iframeConsumer.preferredGateway || ''
+              });
+            }
+          }, 1500);
+        } catch (e) {
+          window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
+          setIframeConsumer(null);
+        }
+      }, 3000);
+    };
+    iframe.addEventListener('load', handleLoad);
+    return () => iframe.removeEventListener('load', handleLoad);
+  }, [iframeConsumer]);
+
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToastMessage(msg);
@@ -277,8 +319,8 @@ export function Home() {
           });
         } else { window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank'); }
       } else {
-        window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
-        navigator.clipboard.writeText(consumer.caNumber).then(() => showToast(t.toast.copyCA)).catch(() => alert('CA Number: ' + consumer.caNumber));
+        // Desktop: open embedded iframe modal
+        setIframeConsumer(consumer);
       }
     });
   };
@@ -1032,6 +1074,53 @@ export function Home() {
         details={balanceDetails}
         isLoading={isBalanceLoading}
       />
+
+      {/* ════ DESKTOP IFRAME MODAL ════ */}
+      {iframeConsumer && (
+        <div className="fixed inset-0 z-[9999] flex flex-col bg-black/70 backdrop-blur-sm" style={{ animation: 'fadeIn 0.2s ease' }}>
+          {/* Top bar */}
+          <div className="flex items-center justify-between px-4 py-3 bg-[#1e293b] border-b border-[#334155] flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <AppLogo className="w-7 h-7 bg-primary-600 rounded-lg flex-shrink-0" />
+              <div>
+                <p className="text-white font-semibold text-sm leading-tight">
+                  {iframeConsumer.name} — Recharge
+                </p>
+                <p className="text-slate-400 text-xs font-mono">CA: {iframeConsumer.caNumber}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-900/40 border border-emerald-700/40 px-3 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"></span>
+                Automation running
+              </span>
+              <button
+                onClick={() => setIframeConsumer(null)}
+                className="flex items-center gap-1.5 text-sm text-slate-300 hover:text-white bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                ✕ Close
+              </button>
+            </div>
+          </div>
+
+          {/* Info banner */}
+          <div className="bg-primary-900/60 border-b border-primary-700/40 px-4 py-2 flex items-center gap-2 text-xs text-primary-200 flex-shrink-0">
+            <Zap size={12} className="text-yellow-400 flex-shrink-0" />
+            Automation will fill your CA number, select gateway <strong className="text-white">{iframeConsumer.preferredGateway || 'auto'}</strong>, enter amount <strong className="text-white">{iframeConsumer.preferredAmount ? `₹${iframeConsumer.preferredAmount}` : '(manual)'}</strong>, and open UPI payment.
+          </div>
+
+          {/* iFrame */}
+          <iframe
+            ref={iframeRef}
+            key={iframeConsumer.id}
+            src="https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill"
+            className="flex-1 w-full border-0 bg-white"
+            title="SBPDCL Payment Portal"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation"
+          />
+        </div>
+      )}
     </div>
+
   );
 }
