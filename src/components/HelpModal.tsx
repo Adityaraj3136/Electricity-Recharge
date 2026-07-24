@@ -1,7 +1,6 @@
-import React from 'react';
 import { Modal } from './Modal';
 import { useLang } from '../hooks/useLang';
-import { Shield, Zap, Info, Clock, Mail, Phone } from 'lucide-react';
+import { Info, Phone } from 'lucide-react';
 
 interface HelpModalProps {
   isOpen: boolean;
@@ -9,7 +8,7 @@ interface HelpModalProps {
 }
 
 export function HelpModal({ isOpen, onClose }: HelpModalProps) {
-  const { lang, t } = useLang();
+  const { lang } = useLang();
   
   const isDark = document.documentElement.classList.contains('dark');
   const sectionBg = isDark ? 'bg-[#1c2a42]' : 'bg-gray-50';
