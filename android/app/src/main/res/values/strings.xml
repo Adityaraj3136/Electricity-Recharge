@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">SBPDCL Family Recharge</string>
-    <string name="title_activity_main">SBPDCL Family Recharge</string>
+    <string name="app_name">Bijli Recharge</string>
+    <string name="title_activity_main">Bijli Recharge</string>
     <string name="package_name">com.adityaraj.sbpdcl</string>
     <string name="custom_url_scheme">com.adityaraj.sbpdcl</string>
 </resources>

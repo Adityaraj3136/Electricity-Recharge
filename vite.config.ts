@@ -11,8 +11,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'SBPDCL Family Recharge',
-        short_name: 'Recharge',
+        name: 'Bijli Recharge',
+        short_name: 'Bijli',
         description: 'Quickly recharge SBPDCL prepaid meters',
         theme_color: '#ffffff',
         background_color: '#ffffff',

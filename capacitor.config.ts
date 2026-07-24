@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.adityaraj.sbpdcl',
-  appName: 'SBPDCL Family Recharge',
+  appName: 'Bijli Recharge',
   webDir: 'dist'
 };
 
