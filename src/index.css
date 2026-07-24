@@ -19,7 +19,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-gray-900 antialiased font-sans;
+    @apply bg-slate-50 text-gray-900 antialiased font-sans dark:bg-slate-950 dark:text-gray-100;
     -webkit-tap-highlight-color: transparent;
     /* Smooth scrolling on iOS */
     -webkit-overflow-scrolling: touch;
@@ -48,7 +48,7 @@
 @layer components {
   /* Frosted glass card */
   .glass-card {
-    @apply bg-white/90 backdrop-blur-xl border border-white/50 shadow-[0_4px_24px_rgba(0,0,0,0.06)] rounded-2xl;
+    @apply bg-white/90 dark:bg-white/5 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)] rounded-2xl;
   }
 
   /* Deep gradient button / avatar */

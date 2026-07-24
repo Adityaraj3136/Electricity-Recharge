@@ -11,6 +11,7 @@ import { Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search, Wifi, Bolt, C
 import { SettingsModal } from '../components/SettingsModal';
 import { BalanceModal } from '../components/BalanceModal';
 import { automationScript } from '../automation/automation';
+import { Network } from '@capacitor/network';
 
 export function Home() {
   const { consumers, addConsumer, updateConsumer, deleteConsumer } = useConsumers();
@@ -81,16 +82,6 @@ export function Home() {
     resetForm();
   };
 
-  const openEdit = (consumer: Consumer) => {
-    setEditingConsumer(consumer);
-    setName(consumer.name);
-    setCaNumber(consumer.caNumber);
-    setMobile(consumer.mobileNumber || '');
-    setAmount(consumer.preferredAmount || '');
-    setGateway(consumer.preferredGateway || '');
-    setActionMenuId(null);
-    setIsAddOpen(true);
-  };
 
   const handleDelete = (id: string) => {
     if (window.confirm(t.delete.confirm)) {
@@ -99,7 +90,13 @@ export function Home() {
     setActionMenuId(null);
   };
 
-  const handleRecharge = (consumer: Consumer) => {
+  const handleRecharge = async (consumer: Consumer) => {
+    const status = await Network.getStatus();
+    if (!status.connected) {
+      showToast(t.toast.offline, 'error');
+      return;
+    }
+
     import('@capacitor/core').then(({ Capacitor }) => {
       if (Capacitor.isNativePlatform()) {
         showToast(`${t.toast.rechargeStart} ${consumer.name}...`);
@@ -147,7 +144,13 @@ export function Home() {
     });
   };
 
-  const handleCheckBalance = (consumer: Consumer) => {
+  const handleCheckBalance = async (consumer: Consumer) => {
+    const status = await Network.getStatus();
+    if (!status.connected) {
+      showToast(t.toast.offline, 'error');
+      return;
+    }
+
     import('@capacitor/core').then(({ Capacitor }) => {
       if (Capacitor.isNativePlatform()) {
         setIsBalanceOpen(true);
@@ -316,12 +319,12 @@ export function Home() {
           </div>
 
           {consumers.length === 0 ? (
-            <div className="text-center py-14 px-6 glass-card">
-              <div className="w-16 h-16 premium-gradient rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/30">
-                <Zap className="text-yellow-300 fill-yellow-300" size={28} />
-              </div>
-              <p className="text-gray-800 font-bold text-lg mb-2">{t.home.noMeters}</p>
-              <p className="text-gray-500 text-sm leading-relaxed max-w-xs mx-auto">{t.home.noMetersHint}</p>
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl p-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary-50 dark:bg-primary-900/20 rounded-bl-full -z-10" />
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t.home.noMeters}</h2>
+              <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm">
+                {t.home.noMetersHint}
+              </p>
               <button
                 onClick={() => { resetForm(); setIsAddOpen(true); }}
                 className="mt-5 inline-flex items-center gap-2 premium-gradient text-white rounded-full px-5 py-2.5 font-semibold text-sm shadow-lg shadow-primary-500/30 active:scale-95 transition-all"
@@ -333,19 +336,19 @@ export function Home() {
           ) : (
             <div className="flex flex-col gap-4">
               {consumers.map((consumer) => (
-                <div key={consumer.id} className="glass-card overflow-hidden group relative">
+                <div key={consumer.id} className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden group relative">
                   {/* Card header */}
-                  <div className="p-4 sm:p-5 flex items-center justify-between">
+                  <div className="p-4 sm:p-5 pb-3 sm:pb-4 flex items-center justify-between border-b border-gray-100 dark:border-slate-700/50">
                     <div className="flex items-center gap-3 min-w-0">
                       {/* Avatar */}
-                      <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${getAvatarColor(consumer.name)} flex items-center justify-center text-white font-bold text-xl flex-shrink-0 shadow-md`}>
+                      <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl ${getAvatarColor(consumer.name)} flex items-center justify-center text-white font-bold text-xl flex-shrink-0 shadow-md`}>
                         {consumer.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-bold text-gray-900 text-base sm:text-[17px] truncate">{consumer.name}</h3>
-                        <p className="text-xs sm:text-sm text-gray-500 font-mono tracking-wide">CA: {consumer.caNumber}</p>
+                        <h3 className="font-bold text-gray-900 dark:text-white text-base sm:text-[17px] truncate">{consumer.name}</h3>
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-mono tracking-wide">CA: {consumer.caNumber}</p>
                         {consumer.mobileNumber && (
-                          <p className="text-xs text-gray-400 mt-0.5">📱 {consumer.mobileNumber}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">📱 {consumer.mobileNumber}</p>
                         )}
                       </div>
                     </div>
@@ -353,28 +356,32 @@ export function Home() {
                     {/* Amount badge + menu */}
                     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                       {consumer.preferredAmount && (
-                        <span className="hidden sm:block text-xs font-bold text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-2.5 py-1">
+                        <span className="hidden sm:block text-xs font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 border border-primary-100 dark:border-primary-800 rounded-full px-2.5 py-1">
                           ₹{consumer.preferredAmount}
                         </span>
                       )}
                       <div className="relative">
                         <button
                           onClick={() => setActionMenuId(actionMenuId === consumer.id ? null : consumer.id)}
-                          className="p-2 text-gray-400 hover:text-primary-600 rounded-full hover:bg-primary-50 transition-colors active:scale-90"
+                          className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                         >
-                          <MoreVertical size={18} />
+                          <MoreVertical size={20} />
                         </button>
                         {actionMenuId === consumer.id && (
-                          <div className="absolute right-0 top-full mt-1 w-36 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white/60 py-1.5 z-20 animate-in fade-in zoom-in-95 origin-top-right">
+                          <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 py-2 z-20 animate-in fade-in zoom-in duration-200">
                             <button
-                              onClick={() => openEdit(consumer)}
-                              className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-primary-600 flex items-center gap-3 transition-colors"
+                              onClick={() => {
+                                setEditingConsumer(consumer);
+                                setIsAddOpen(true);
+                                setActionMenuId(null);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors"
                             >
                               <Edit2 size={15} /> {t.delete.edit}
                             </button>
                             <button
                               onClick={() => handleDelete(consumer.id)}
-                              className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                              className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 transition-colors"
                             >
                               <Trash2 size={15} /> {t.delete.delete}
                             </button>
@@ -394,7 +401,7 @@ export function Home() {
                   )}
 
                   {/* Divider */}
-                  <div className="mx-4 h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+                  <div className="mx-4 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-slate-700 to-transparent" />
 
                   {/* Action buttons */}
                   <div className="p-3 sm:p-4 grid grid-cols-2 gap-2.5">
@@ -407,7 +414,7 @@ export function Home() {
                     </button>
                     <button
                       onClick={() => handleCheckBalance(consumer)}
-                      className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 rounded-xl h-11 sm:h-12 font-semibold text-sm hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 active:scale-95 transition-all"
+                      className="flex items-center justify-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-200 rounded-xl h-11 sm:h-12 font-semibold text-sm hover:border-primary-300 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-slate-700 active:scale-95 transition-all"
                     >
                       <Search size={15} className="text-primary-500" />
                       {t.home.checkBalance}
@@ -424,7 +431,7 @@ export function Home() {
           <section className="mt-6 mb-2">
             <div className="glass-card p-4">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold text-gray-700">{t.home.statsTitle}</h2>
+                <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{t.home.statsTitle}</h2>
                 <ChevronRight size={16} className="text-gray-400" />
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -435,7 +442,7 @@ export function Home() {
                 ].map((step, i) => (
                   <div key={i} className="flex flex-col items-center gap-1">
                     <span className="text-xl">{step.icon}</span>
-                    <span className="text-xs text-gray-600 font-medium leading-tight">{step.label}</span>
+                    <span className="text-xs text-gray-600 dark:text-gray-400 font-medium leading-tight">{step.label}</span>
                   </div>
                 ))}
               </div>

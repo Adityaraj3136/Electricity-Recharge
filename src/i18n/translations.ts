@@ -49,6 +49,7 @@ export const translations = {
       balanceOnly: 'Balance check is only available in the mobile app.',
       copyCA: 'CA Number copied! Paste it on the website.',
       browserError: 'Browser plugin not available.',
+      offline: 'No internet connection. Please check your network and try again.',
     },
     delete: {
       confirm: 'Delete this meter?',
@@ -105,6 +106,7 @@ export const translations = {
       balanceOnly: 'बैलेंस जांच केवल मोबाइल ऐप में उपलब्ध है।',
       copyCA: 'CA नंबर कॉपी हो गया! वेबसाइट पर पेस्ट करें।',
       browserError: 'ब्राउज़र प्लगइन उपलब्ध नहीं है।',
+      offline: 'कोई इंटरनेट कनेक्शन नहीं है। कृपया अपना नेटवर्क जांचें और पुनः प्रयास करें।',
     },
     delete: {
       confirm: 'यह मीटर हटाएं?',

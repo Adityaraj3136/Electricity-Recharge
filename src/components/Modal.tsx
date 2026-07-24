@@ -1,5 +1,4 @@
-import React, { useEffect, useRef } from 'react';
-import { cn } from '../utils/cn';
+import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -10,8 +9,6 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -25,34 +22,24 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
   if (!isOpen) return null;
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === overlayRef.current) {
-      onClose();
-    }
-  };
-
   return (
-    <div 
-      ref={overlayRef}
-      onClick={handleOverlayClick}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity p-4 sm:p-6"
-    >
-      <div 
-        className={cn(
-          "w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in slide-in-from-bottom-10 sm:slide-in-from-bottom-4 duration-300",
-        )}
-      >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-          <button 
-            onClick={onClose}
-            className="p-2 -mr-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors focus:outline-none"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <div className="p-6 overflow-y-auto">
-          {children}
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      
+      <div className="fixed inset-x-0 bottom-0 z-50 transform transition-transform duration-300 ease-out sm:relative sm:max-w-md w-full">
+        <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
+          <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-10">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white font-sans">{title}</h2>
+            <button 
+              onClick={onClose}
+              className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-50 hover:bg-gray-100 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-full transition-colors active:scale-95"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <div className="p-6 overflow-y-auto">
+            {children}
+          </div>
         </div>
       </div>
     </div>
