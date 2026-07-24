@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import type { BalanceDetails } from '../types';
-import { User, Activity, Calendar, Zap, CreditCard, XCircle, CheckCircle, IndianRupee } from 'lucide-react';
+import { User, Activity, Calendar, CreditCard, XCircle, CheckCircle, IndianRupee } from 'lucide-react';
 
 interface BalanceModalProps {
   isOpen: boolean;
