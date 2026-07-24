@@ -7,7 +7,7 @@ import { TextField } from '../components/TextField';
 import { Select } from '../components/Select';
 import { Modal } from '../components/Modal';
 import type { Consumer } from '../types';
-import { Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Check } from 'lucide-react';
+import { Plus, Settings, Zap, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 // Removed unused automationScript import
 import { EmbeddedBrowser } from '../components/EmbeddedBrowser';
 import { SettingsModal } from '../components/SettingsModal';
