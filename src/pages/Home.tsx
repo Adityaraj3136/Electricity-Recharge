@@ -475,7 +475,16 @@ export function Home() {
                       {actionMenuId === consumer.id && (
                         <div className={`absolute right-0 top-full mt-1 w-44 rounded-xl shadow-xl border py-1.5 z-30 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
                           <button
-                            onClick={() => { setEditingConsumer(consumer); setIsAddOpen(true); setActionMenuId(null); }}
+                            onClick={() => { 
+                              setEditingConsumer(consumer); 
+                              setName(consumer.name);
+                              setCaNumber(consumer.caNumber);
+                              setMobile(consumer.mobileNumber || '');
+                              setAmount(consumer.preferredAmount || '');
+                              setGateway(consumer.preferredGateway || '');
+                              setIsAddOpen(true); 
+                              setActionMenuId(null); 
+                            }}
                             className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2.5 transition-colors ${isDark ? 'text-gray-200 hover:bg-[#253350]' : 'text-gray-700 hover:bg-gray-50'}`}
                           >
                             <Edit2 size={14} /> {t.delete.edit}
