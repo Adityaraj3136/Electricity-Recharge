@@ -6,10 +6,11 @@ import { FAB } from '../components/FAB';
 import { TextField } from '../components/TextField';
 import { Select } from '../components/Select';
 import { Modal } from '../components/Modal';
-import type { Consumer } from '../types';
-import { Plus, Settings, Zap, MoreVertical, Edit2, Trash2 } from 'lucide-react';
-// Removed unused automationScript import
+import type { Consumer, BalanceDetails } from '../types';
+import { Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search } from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
+import { BalanceModal } from '../components/BalanceModal';
+import { automationScript } from '../automation/automation';
 
 export function Home() {
   const { consumers, addConsumer, updateConsumer, deleteConsumer } = useConsumers();
@@ -32,15 +33,10 @@ export function Home() {
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Progress Modal State (removed, now handled by EmbeddedBrowser)
-  // const [isProgressOpen, setIsProgressOpen] = useState(false);
-  // const [progress, setProgress] = useState<AutomationProgress>({
-  //   currentStep: 'Opening website',
-  //   completedSteps: []
-  // });
-
-
-  // Removed message listener – progress now handled inside EmbeddedBrowser
+  // Balance Check State
+  const [isBalanceOpen, setIsBalanceOpen] = useState(false);
+  const [isBalanceLoading, setIsBalanceLoading] = useState(false);
+  const [balanceDetails, setBalanceDetails] = useState<BalanceDetails | null>(null);
 
   const resetForm = () => {
     setName('');
@@ -156,6 +152,62 @@ export function Home() {
     });
   };
 
+  const handleCheckBalance = (consumer: Consumer) => {
+    import('@capacitor/core').then(({ Capacitor }) => {
+      if (Capacitor.isNativePlatform()) {
+        setIsBalanceOpen(true);
+        setIsBalanceLoading(true);
+        setBalanceDetails(null);
+
+        const win = window as any;
+        if (win.cordova && win.cordova.InAppBrowser) {
+          const browser = win.cordova.InAppBrowser.open(
+            'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
+            '_blank',
+            'hidden=yes,location=no,clearcache=yes,clearsessioncache=yes'
+          );
+          
+          const messageListener = (event: any) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === 'BALANCE_DETAILS') {
+                setBalanceDetails(data.details);
+                setIsBalanceLoading(false);
+                browser.close();
+              } else if (data.type === 'BALANCE_ERROR') {
+                setToastMessage(`Error: ${data.error}`);
+                setIsBalanceOpen(false);
+                browser.close();
+              }
+            } catch (e) {}
+          };
+
+          browser.addEventListener('message', messageListener);
+
+          browser.addEventListener('loadstop', () => {
+            browser.executeScript({ code: automationScript });
+            
+            const runFetch = `
+              setTimeout(() => {
+                if (typeof window.fetchSbpdclBalance === 'function') {
+                  window.fetchSbpdclBalance('${consumer.caNumber}');
+                }
+              }, 1500);
+            `;
+            setTimeout(() => {
+               browser.executeScript({ code: runFetch });
+            }, 500);
+          });
+        } else {
+          setToastMessage('InAppBrowser plugin is not available.');
+          setIsBalanceOpen(false);
+        }
+      } else {
+        setToastMessage('Check Balance is only available in the mobile app.');
+        setTimeout(() => setToastMessage(null), 3000);
+      }
+    });
+  };
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-24">
       {/* Header */}
@@ -227,7 +279,7 @@ export function Home() {
                     )}
                   </div>
                 </div>
-                <div className="px-5 pb-5 pt-2">
+                <div className="px-5 pb-5 pt-2 flex flex-col gap-2">
                   <Button 
                     fullWidth 
                     onClick={() => handleRecharge(consumer)}
@@ -235,6 +287,15 @@ export function Home() {
                   >
                     <Zap size={18} />
                     Recharge Now
+                  </Button>
+                  <Button 
+                    fullWidth 
+                    variant="secondary"
+                    onClick={() => handleCheckBalance(consumer)}
+                    className="gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  >
+                    <Search size={18} />
+                    Check Balance
                   </Button>
                 </div>
               </Card>
@@ -318,6 +379,17 @@ export function Home() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+
+      {/* Balance Details Modal */}
+      <BalanceModal
+        isOpen={isBalanceOpen}
+        onClose={() => {
+          setIsBalanceOpen(false);
+          setBalanceDetails(null);
+        }}
+        details={balanceDetails}
+        isLoading={isBalanceLoading}
       />
     </div>
   );

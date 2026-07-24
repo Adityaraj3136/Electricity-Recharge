@@ -302,5 +302,61 @@ export const automationScript = `
       window.postMessage({ type: 'SBPDCL_ERROR', error: error.message }, '*');
     }
   };
+
+  // ── BALANCE FETCH MAIN ────────────────────────────────────────────────────
+  window.fetchSbpdclBalance = async function(caNumber) {
+    try {
+      await fillCANumber(caNumber);
+      await clickSearch();
+      
+      // Wait for table to appear
+      await waitForElement('table.table', ['tbody']);
+      await wait(1000); // let Angular finish rendering
+
+      const getTdValue = (labelMatches) => {
+        const tds = Array.from(document.querySelectorAll('td.text strong, td.text'));
+        for (let td of tds) {
+          const text = (td.textContent || '').trim().toLowerCase();
+          if (labelMatches.some(m => text.includes(m.toLowerCase()))) {
+            let next = td.closest('td').nextElementSibling;
+            return next ? (next.textContent || '').trim().replace(/picture_as_pdf/g, '').trim() : '';
+          }
+        }
+        return '';
+      };
+
+      const details = {
+        caNumber: getTdValue(['CA Number', 'Consumer Number']),
+        name: getTdValue(['Name', 'Consumer Name']),
+        division: getTdValue(['Division']),
+        subDivision: getTdValue(['Sub Division']),
+        lastRechargeDate: getTdValue(['Last Recharge Date']),
+        lastRechargeAmount: getTdValue(['Last Recharge Amount']),
+        consumerType: getTdValue(['Consumer Type']),
+        currentStatus: getTdValue(['Current Status']),
+        availableBalance: getTdValue(['Available Balance', 'Balance(Rs)']),
+        amispVendor: getTdValue(['AMISP Vendor'])
+      };
+
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cordova_iab) {
+        window.webkit.messageHandlers.cordova_iab.postMessage(JSON.stringify({
+          type: 'BALANCE_DETAILS',
+          details
+        }));
+      } else {
+        // Fallback for regular web / older Android where executeScript callback is used
+        return details;
+      }
+
+    } catch (error) {
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cordova_iab) {
+        window.webkit.messageHandlers.cordova_iab.postMessage(JSON.stringify({
+          type: 'BALANCE_ERROR',
+          error: error.message
+        }));
+      }
+      throw error;
+    }
+  };
 })(window);
 `;

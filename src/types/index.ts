@@ -27,3 +27,16 @@ export interface AutomationProgress {
   completedSteps: AutomationStep[];
   error?: string;
 }
+
+export interface BalanceDetails {
+  caNumber: string;
+  name: string;
+  division?: string;
+  subDivision?: string;
+  lastRechargeDate: string;
+  lastRechargeAmount: string;
+  consumerType?: string;
+  currentStatus: string;
+  availableBalance: string;
+  amispVendor: string;
+}
