@@ -692,7 +692,7 @@ export function Home() {
                       </button>
                       <button
                         onClick={() => handleCheckBalance(consumer)}
-                        className={`w-full flex items-center justify-center gap-2 rounded-xl h-10 font-semibold text-sm border active:scale-95 transition-all ${isDark ? 'bg-[#1c2a42] border-[#253350] text-gray-200 hover:border-primary-500 hover:text-primary-400' : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50'}`}
+                        className={`w-full flex items-center justify-center gap-2 rounded-xl h-10 font-semibold text-sm border active:scale-95 transition-all ${isDark ? 'bg-[#1c2a42] border-[#253350] text-primary-400 hover:border-primary-500 hover:text-primary-300 hover:bg-[#253350]' : 'bg-primary-50 border-primary-200 text-primary-700 hover:border-primary-300 hover:text-primary-800 hover:bg-primary-100'}`}
                       >
                         <Search size={14} className="text-primary-500" />
                         {t.home.checkBalance}
@@ -713,7 +713,7 @@ export function Home() {
           <div className="flex items-center justify-between mb-4">
             <h2 className={`text-lg font-bold ${textPrimary}`}>{t.home.savedMeters}</h2>
             <button
-              onClick={() => { resetForm(); setIsAddOpen(true); }}
+              onClick={() => { setActiveTab('meters'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className="flex items-center gap-1 text-sm text-primary-600 font-semibold hover:underline"
             >
               {lang === 'en' ? 'View all' : 'सभी देखें'} <ArrowRight size={14}/>
@@ -805,7 +805,7 @@ export function Home() {
                     </button>
                     <button
                       onClick={() => handleCheckBalance(consumer)}
-                      className={`w-full flex items-center justify-center gap-2 rounded-xl h-10 font-semibold text-sm border active:scale-95 transition-all ${isDark ? 'bg-[#1c2a42] border-[#253350] text-gray-200 hover:border-primary-500 hover:text-primary-400' : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50'}`}
+                      className={`w-full flex items-center justify-center gap-2 rounded-xl h-10 font-semibold text-sm border active:scale-95 transition-all ${isDark ? 'bg-[#1c2a42] border-[#253350] text-primary-400 hover:border-primary-500 hover:text-primary-300 hover:bg-[#253350]' : 'bg-primary-50 border-primary-200 text-primary-700 hover:border-primary-300 hover:text-primary-800 hover:bg-primary-100'}`}
                     >
                       <Search size={14} className="text-primary-500" />
                       {t.home.checkBalance}
@@ -851,9 +851,7 @@ export function Home() {
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className={`text-lg font-bold ${textPrimary}`}>{lang === 'en' ? 'How it works' : 'यह कैसे काम करता है'}</h2>
-            <button className="text-sm text-primary-600 font-semibold flex items-center gap-1 hover:underline">
-              {lang === 'en' ? 'View all' : 'सभी देखें'} <ArrowRight size={14}/>
-            </button>
+
           </div>
           <div className={`rounded-2xl border p-5 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100 shadow-sm'}`}>
             <div className="flex items-start gap-2 sm:gap-4 overflow-x-auto pb-1">
