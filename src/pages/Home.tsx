@@ -1,43 +1,144 @@
 import { useState } from 'react';
 import { useConsumers } from '../hooks/useConsumers';
 import { useLang } from '../hooks/useLang';
+import { useSettings } from '../hooks/useSettings';
 import { Button } from '../components/Button';
-import { FAB } from '../components/FAB';
 import { TextField } from '../components/TextField';
 import { Select } from '../components/Select';
 import { Modal } from '../components/Modal';
 import type { Consumer, BalanceDetails } from '../types';
-import { Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search, Wifi, Bolt, ChevronRight, Globe } from 'lucide-react';
+import {
+  Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search,
+  Bolt, Globe, Moon, Sun, Home as HomeIcon, BarChart2,
+  HelpCircle, User, Shield, ArrowRight, BookOpen, CreditCard
+} from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
 import { BalanceModal } from '../components/BalanceModal';
 import { automationScript } from '../automation/automation';
 import { Network } from '@capacitor/network';
 
+// ─── Avatar colour palette ─────────────────────────────────────────────────
+const AVATAR_GRADIENTS = [
+  'from-violet-500 to-purple-700',
+  'from-indigo-500 to-blue-700',
+  'from-rose-500 to-pink-700',
+  'from-amber-500 to-orange-600',
+  'from-teal-500 to-cyan-600',
+  'from-emerald-500 to-green-700',
+];
+const getAvatarGradient = (name: string) =>
+  AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
+
+// ─── Inline SVG hero illustration ─────────────────────────────────────────
+const HeroIllustration = () => (
+  <svg viewBox="0 0 340 220" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+    {/* Sky */}
+    <rect width="340" height="220" fill="url(#skyGrad)" rx="12"/>
+    <defs>
+      <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#dbeafe"/>
+        <stop offset="100%" stopColor="#eff6ff"/>
+      </linearGradient>
+    </defs>
+    {/* Sun */}
+    <circle cx="290" cy="38" r="26" fill="#fbbf24" opacity="0.9"/>
+    <circle cx="290" cy="38" r="32" fill="#fde68a" opacity="0.35"/>
+    <circle cx="290" cy="38" r="38" fill="#fef3c7" opacity="0.2"/>
+    {/* Clouds */}
+    <ellipse cx="60" cy="30" rx="30" ry="14" fill="white" opacity="0.85"/>
+    <ellipse cx="82" cy="24" rx="22" ry="13" fill="white" opacity="0.9"/>
+    <ellipse cx="44" cy="26" rx="18" ry="11" fill="white" opacity="0.75"/>
+    <ellipse cx="180" cy="20" rx="22" ry="10" fill="white" opacity="0.7"/>
+    <ellipse cx="198" cy="15" rx="16" ry="9" fill="white" opacity="0.8"/>
+    {/* Ground */}
+    <rect x="0" y="175" width="340" height="45" fill="#bbf7d0" rx="4"/>
+    <rect x="0" y="185" width="340" height="35" fill="#86efac" rx="4"/>
+    {/* Power Tower */}
+    <g transform="translate(22,60)">
+      {/* Tower body */}
+      <polygon points="20,0 30,0 38,110 12,110" fill="#64748b" opacity="0.9"/>
+      <polygon points="23,3 27,3 34,108 16,108" fill="#94a3b8" opacity="0.6"/>
+      {/* Cross arms */}
+      <rect x="-10" y="20" width="70" height="6" rx="3" fill="#475569"/>
+      <rect x="-5" y="45" width="60" height="5" rx="2.5" fill="#475569"/>
+      <rect x="0" y="70" width="50" height="4" rx="2" fill="#475569"/>
+      {/* Insulators */}
+      <circle cx="-10" cy="23" r="4" fill="#e2e8f0"/>
+      <circle cx="60" cy="23" r="4" fill="#e2e8f0"/>
+      <circle cx="-5" cy="47" r="3.5" fill="#e2e8f0"/>
+      <circle cx="55" cy="47" r="3.5" fill="#e2e8f0"/>
+      {/* Base */}
+      <rect x="16" y="110" width="18" height="8" rx="2" fill="#334155"/>
+    </g>
+    {/* Power lines */}
+    <path d="M12 83 Q140 100 200 78" stroke="#64748b" strokeWidth="1.5" fill="none" opacity="0.6"/>
+    <path d="M77 83 Q160 95 200 80" stroke="#64748b" strokeWidth="1.5" fill="none" opacity="0.6"/>
+    {/* House */}
+    <g transform="translate(175,70)">
+      {/* Roof */}
+      <polygon points="0,55 75,55 75,0 37.5,-35 0,0" fill="#2563eb"/>
+      <polygon points="5,50 70,50 70,2 37.5,-30 5,2" fill="#3b82f6"/>
+      {/* Solar panels on roof */}
+      <rect x="18" y="10" width="16" height="10" rx="2" fill="#0f172a" opacity="0.85"/>
+      <rect x="36" y="10" width="16" height="10" rx="2" fill="#0f172a" opacity="0.85"/>
+      <rect x="18" y="22" width="16" height="10" rx="2" fill="#0f172a" opacity="0.85"/>
+      <rect x="36" y="22" width="16" height="10" rx="2" fill="#0f172a" opacity="0.85"/>
+      <line x1="18" y1="15" x2="34" y2="15" stroke="#1e40af" strokeWidth="0.5"/>
+      <line x1="36" y1="15" x2="52" y2="15" stroke="#1e40af" strokeWidth="0.5"/>
+      {/* Walls */}
+      <rect x="0" y="55" width="75" height="50" fill="#f1f5f9"/>
+      <rect x="2" y="57" width="71" height="46" fill="#f8fafc"/>
+      {/* Door */}
+      <rect x="28" y="80" width="19" height="25" rx="2" fill="#2563eb" opacity="0.8"/>
+      <circle cx="44" cy="93" r="1.5" fill="#fbbf24"/>
+      {/* Windows */}
+      <rect x="6" y="62" width="16" height="14" rx="2" fill="#bfdbfe"/>
+      <line x1="14" y1="62" x2="14" y2="76" stroke="#93c5fd" strokeWidth="0.8"/>
+      <line x1="6" y1="69" x2="22" y2="69" stroke="#93c5fd" strokeWidth="0.8"/>
+      <rect x="53" y="62" width="16" height="14" rx="2" fill="#bfdbfe"/>
+      <line x1="61" y1="62" x2="61" y2="76" stroke="#93c5fd" strokeWidth="0.8"/>
+      <line x1="53" y1="69" x2="69" y2="69" stroke="#93c5fd" strokeWidth="0.8"/>
+    </g>
+    {/* Trees */}
+    <g transform="translate(155,120)">
+      <rect x="7" y="30" width="6" height="20" fill="#92400e"/>
+      <ellipse cx="10" cy="25" rx="13" ry="18" fill="#16a34a"/>
+      <ellipse cx="10" cy="20" rx="10" ry="14" fill="#22c55e"/>
+    </g>
+    <g transform="translate(268,115)">
+      <rect x="7" y="30" width="6" height="22" fill="#92400e"/>
+      <ellipse cx="10" cy="24" rx="15" ry="20" fill="#15803d"/>
+      <ellipse cx="10" cy="18" rx="11" ry="15" fill="#16a34a"/>
+    </g>
+    <g transform="translate(142,130)">
+      <rect x="5" y="20" width="4" height="14" fill="#92400e"/>
+      <ellipse cx="7" cy="16" rx="9" ry="12" fill="#22c55e"/>
+    </g>
+    {/* Lightning bolt accent */}
+    <g transform="translate(118,85)">
+      <circle cx="12" cy="12" r="14" fill="#fbbf24" opacity="0.18"/>
+      <polygon points="14,2 7,13 12,13 10,22 17,11 12,11" fill="#fbbf24"/>
+    </g>
+  </svg>
+);
+
+// ─── Component ─────────────────────────────────────────────────────────────
 export function Home() {
   const { consumers, addConsumer, updateConsumer, deleteConsumer } = useConsumers();
   const { lang, t, toggleLang } = useLang();
+  const { settings, updateSettings } = useSettings();
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingConsumer, setEditingConsumer] = useState<Consumer | null>(null);
-
-  // Form State
   const [name, setName] = useState('');
   const [caNumber, setCaNumber] = useState('');
   const [mobile, setMobile] = useState('');
   const [amount, setAmount] = useState('');
   const [gateway, setGateway] = useState('');
-
-  // Action Menu State
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
-
-  // Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
-
-  // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // Balance Check State
   const [isBalanceOpen, setIsBalanceOpen] = useState(false);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [balanceDetails, setBalanceDetails] = useState<BalanceDetails | null>(null);
@@ -49,486 +150,557 @@ export function Home() {
   };
 
   const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return t.greeting.morning;
-    if (hour < 18) return t.greeting.afternoon;
+    const h = new Date().getHours();
+    if (h < 12) return t.greeting.morning;
+    if (h < 18) return t.greeting.afternoon;
     return t.greeting.evening;
   };
 
   const resetForm = () => {
-    setName('');
-    setCaNumber('');
-    setMobile('');
-    setAmount('');
-    setGateway('');
-    setEditingConsumer(null);
+    setName(''); setCaNumber(''); setMobile('');
+    setAmount(''); setGateway(''); setEditingConsumer(null);
   };
 
   const handleSave = () => {
     if (!name || !caNumber) return;
-    const consumerData = {
-      name,
-      caNumber,
-      mobileNumber: mobile,
-      preferredAmount: amount,
-      preferredGateway: gateway as any,
-    };
-    if (editingConsumer) {
-      updateConsumer(editingConsumer.id, consumerData);
-    } else {
-      addConsumer(consumerData);
-    }
+    const data = { name, caNumber, mobileNumber: mobile, preferredAmount: amount, preferredGateway: gateway as any };
+    editingConsumer ? updateConsumer(editingConsumer.id, data) : addConsumer(data);
     setIsAddOpen(false);
     resetForm();
   };
 
-
   const handleDelete = (id: string) => {
-    if (window.confirm(t.delete.confirm)) {
-      deleteConsumer(id);
-    }
+    if (window.confirm(t.delete.confirm)) deleteConsumer(id);
     setActionMenuId(null);
   };
 
   const handleRecharge = async (consumer: Consumer) => {
     const status = await Network.getStatus();
-    if (!status.connected) {
-      showToast(t.toast.offline, 'error');
-      return;
-    }
-
+    if (!status.connected) { showToast(t.toast.offline, 'error'); return; }
     import('@capacitor/core').then(({ Capacitor }) => {
       if (Capacitor.isNativePlatform()) {
         showToast(`${t.toast.rechargeStart} ${consumer.name}...`);
         const win = window as any;
-        if (win.cordova && win.cordova.InAppBrowser) {
+        if (win.cordova?.InAppBrowser) {
           const browser = win.cordova.InAppBrowser.open(
-            'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
-            '_blank',
-            [
-              'location=no',
-              'toolbar=yes',
-              'toolbarcolor=#7c3aed',
-              'closebuttoncaption=✕ Close',
-              'closebuttoncolor=#ffffff',
-              'hidenavigationbuttons=yes',
-              'hideurlbar=yes',
-              'zoom=no',
-              'clearcache=yes',
-              'clearsessioncache=yes',
-              'hardwareback=yes',
-            ].join(',')
+            'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank',
+            ['location=no','toolbar=yes','toolbarcolor=#2563eb','closebuttoncaption=✕ Close',
+             'closebuttoncolor=#ffffff','hidenavigationbuttons=yes','hideurlbar=yes',
+             'zoom=no','clearcache=yes','clearsessioncache=yes','hardwareback=yes'].join(',')
           );
           browser.addEventListener('loadstop', () => {
             browser.executeScript({ code: automationScript });
-            const runAuto = `
-              setTimeout(() => {
-                if (typeof window.runSbpdclAutomation === 'function') {
-                  window.runSbpdclAutomation('${consumer.caNumber}', '${consumer.mobileNumber || ''}', '${consumer.preferredAmount || ''}');
-                }
-              }, 1500);
-            `;
-            setTimeout(() => browser.executeScript({ code: runAuto }), 500);
+            setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.runSbpdclAutomation==='function') window.runSbpdclAutomation('${consumer.caNumber}','${consumer.mobileNumber||''}','${consumer.preferredAmount||''}'); },1500);` }), 500);
           });
-        } else {
-          window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
-        }
+        } else { window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank'); }
       } else {
         window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank');
-        navigator.clipboard.writeText(consumer.caNumber).then(() => {
-          showToast(t.toast.copyCA);
-        }).catch(() => {
-          alert('CA Number: ' + consumer.caNumber);
-        });
+        navigator.clipboard.writeText(consumer.caNumber).then(() => showToast(t.toast.copyCA)).catch(() => alert('CA Number: ' + consumer.caNumber));
       }
     });
   };
 
   const handleCheckBalance = async (consumer: Consumer) => {
     const status = await Network.getStatus();
-    if (!status.connected) {
-      showToast(t.toast.offline, 'error');
-      return;
-    }
-
+    if (!status.connected) { showToast(t.toast.offline, 'error'); return; }
     import('@capacitor/core').then(({ Capacitor }) => {
       if (Capacitor.isNativePlatform()) {
-        setIsBalanceOpen(true);
-        setIsBalanceLoading(true);
-        setBalanceDetails(null);
+        setIsBalanceOpen(true); setIsBalanceLoading(true); setBalanceDetails(null);
         const win = window as any;
-        if (win.cordova && win.cordova.InAppBrowser) {
-          const browser = win.cordova.InAppBrowser.open(
-            'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
-            '_blank',
-            'hidden=yes,location=no,clearcache=yes,clearsessioncache=yes'
-          );
-          const messageListener = (event: any) => {
+        if (win.cordova?.InAppBrowser) {
+          const browser = win.cordova.InAppBrowser.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank', 'hidden=yes,location=no,clearcache=yes,clearsessioncache=yes');
+          browser.addEventListener('message', (event: any) => {
             try {
               const data = JSON.parse(event.data);
-              if (data.type === 'BALANCE_DETAILS') {
-                setBalanceDetails(data.details);
-                setIsBalanceLoading(false);
-                browser.close();
-              } else if (data.type === 'BALANCE_ERROR') {
-                showToast(`Error: ${data.error}`, 'error');
-                setIsBalanceOpen(false);
-                browser.close();
-              }
+              if (data.type === 'BALANCE_DETAILS') { setBalanceDetails(data.details); setIsBalanceLoading(false); browser.close(); }
+              else if (data.type === 'BALANCE_ERROR') { showToast(`Error: ${data.error}`, 'error'); setIsBalanceOpen(false); browser.close(); }
             } catch (e) {}
-          };
-          browser.addEventListener('message', messageListener);
+          });
           browser.addEventListener('loadstop', () => {
             browser.executeScript({ code: automationScript });
-            const runFetch = `
-              setTimeout(() => {
-                if (typeof window.fetchSbpdclBalance === 'function') {
-                  window.fetchSbpdclBalance('${consumer.caNumber}');
-                }
-              }, 1500);
-            `;
-            setTimeout(() => browser.executeScript({ code: runFetch }), 500);
+            setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.fetchSbpdclBalance==='function') window.fetchSbpdclBalance('${consumer.caNumber}'); },1500);` }), 500);
           });
-        } else {
-          showToast(t.toast.browserError, 'error');
-          setIsBalanceOpen(false);
-        }
-      } else {
-        showToast(t.toast.balanceOnly, 'error');
-      }
+        } else { showToast(t.toast.browserError, 'error'); setIsBalanceOpen(false); }
+      } else { showToast(t.toast.balanceOnly, 'error'); }
     });
   };
 
-  // Avatar background colors based on first letter
-  const avatarColors = [
-    'from-violet-500 to-purple-700',
-    'from-indigo-500 to-blue-700',
-    'from-rose-500 to-pink-700',
-    'from-amber-500 to-orange-600',
-    'from-teal-500 to-cyan-600',
-    'from-emerald-500 to-green-700',
+  // ─── Shared styles ──────────────────────────────────────────────────────
+  const isDark = settings.darkMode;
+  const bg = isDark ? 'bg-[#0e1726]' : 'bg-[#f0f5ff]';
+  const textPrimary = isDark ? 'text-white' : 'text-gray-900';
+  const textSecondary = isDark ? 'text-gray-400' : 'text-gray-500';
+  const sectionBg = isDark ? 'bg-[#162033]' : 'bg-white';
+
+  // ─── Quick actions data ─────────────────────────────────────────────────
+  const quickActions = [
+    { icon: <BookOpen size={22} className="text-blue-600"/>, label: lang === 'en' ? 'Save CA Number' : 'CA नंबर सेव', desc: lang === 'en' ? 'Save for faster recharge' : 'जल्द रिचार्ज के लिए', color: 'bg-blue-50 dark:bg-blue-900/20', onClick: () => { resetForm(); setIsAddOpen(true); } },
+    { icon: <Zap size={22} className="text-purple-600"/>, label: lang === 'en' ? 'Auto Fill Form' : 'फॉर्म भरें', desc: lang === 'en' ? 'Quick & easy' : 'जल्दी और आसान', color: 'bg-purple-50 dark:bg-purple-900/20', onClick: () => consumers.length ? handleRecharge(consumers[0]) : showToast(lang === 'en' ? 'Add a meter first' : 'पहले मीटर जोड़ें', 'error') },
+    { icon: <CreditCard size={22} className="text-green-600"/>, label: lang === 'en' ? 'Pay via UPI' : 'UPI से भुगतान', desc: lang === 'en' ? 'Multiple payment options' : 'अनेक विकल्प', color: 'bg-green-50 dark:bg-green-900/20', onClick: () => consumers.length ? handleRecharge(consumers[0]) : showToast(lang === 'en' ? 'Add a meter first' : 'पहले मीटर जोड़ें', 'error') },
   ];
-  const getAvatarColor = (name: string) => {
-    const i = name.charCodeAt(0) % avatarColors.length;
-    return avatarColors[i];
-  };
+
+  // ─── How it works steps ─────────────────────────────────────────────────
+  const howItWorks = [
+    { num: 1, icon: <BookOpen size={20} className="text-blue-600"/>, bg: 'bg-blue-100 dark:bg-blue-900/30', title: t.home.step1Title, desc: t.home.step1Desc },
+    { num: 2, icon: <Zap size={20} className="text-purple-600"/>, bg: 'bg-purple-100 dark:bg-purple-900/30', title: t.home.step2Title, desc: t.home.step2Desc },
+    { num: 3, icon: <CreditCard size={20} className="text-green-600"/>, bg: 'bg-green-100 dark:bg-green-900/30', title: lang === 'en' ? 'Pay Securely' : 'सुरक्षित भुगतान', desc: lang === 'en' ? 'Complete payment via UPI or other methods' : 'UPI या अन्य तरीकों से भुगतान करें' },
+  ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-[#0e1726] font-sans transition-colors duration-300">
+    <div className={`min-h-screen ${bg} font-sans transition-colors duration-300`}>
 
-      {/* ─── HERO HEADER ─── */}
-      <header className="relative overflow-hidden hero-mesh text-white pt-safe">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-10 -right-10 w-56 h-56 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute top-8 right-16 w-20 h-20 rounded-full bg-purple-300/20 blur-2xl" />
-          <div className="absolute -bottom-8 -left-8 w-40 h-40 rounded-full bg-indigo-400/20 blur-2xl" />
+      {/* ════════════════════════════════════════════════════════
+          DESKTOP NAVBAR (hidden on mobile)
+      ════════════════════════════════════════════════════════ */}
+      <nav className={`hidden md:flex items-center justify-between px-8 py-3 ${sectionBg} shadow-sm border-b ${isDark ? 'border-[#253350]' : 'border-gray-100'} sticky top-0 z-40`}>
+        {/* Logo */}
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-md shadow-primary-500/30">
+            <Bolt size={16} className="text-yellow-300 fill-yellow-300" />
+          </div>
+          <span className={`font-bold text-lg tracking-tight ${textPrimary}`}>{t.appName}</span>
         </div>
 
-        <div className="relative z-10 px-5 pt-12 pb-6 max-w-lg mx-auto w-full">
-          {/* Top bar */}
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              {/* Logo pill */}
-              <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-2xl px-3 py-1.5">
-                <Bolt size={18} className="text-yellow-300 fill-yellow-300" />
-                <span className="text-white font-bold text-base tracking-tight">{t.appName}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Language toggle */}
-              <button
-                onClick={toggleLang}
-                className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-full px-3 py-1.5 transition-all active:scale-95"
-                aria-label="Toggle language"
-              >
-                <Globe size={14} className="text-white/80" />
-                <span className="text-white text-xs font-semibold tracking-wider uppercase">
-                  {lang === 'en' ? 'हिंदी' : 'EN'}
-                </span>
-              </button>
-              {/* Settings */}
-              <button
-                onClick={() => setIsSettingsOpen(true)}
-                className="p-2.5 bg-white/15 backdrop-blur-sm hover:bg-white/25 rounded-full transition-all active:scale-95"
-              >
-                <Settings size={18} className="text-white" />
-              </button>
-            </div>
-          </div>
-
-          {/* Greeting */}
-          <div className="mb-6">
-            <p className="text-purple-200 text-sm font-medium tracking-widest uppercase">{getGreeting()}</p>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mt-0.5 leading-tight">
-              {t.appTagline}
-            </h1>
-          </div>
-
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { icon: <Bolt size={16} className="text-yellow-300 fill-yellow-300" />, label: lang === 'en' ? 'Instant' : 'तुरंत', value: lang === 'en' ? 'Recharge' : 'रिचार्ज' },
-              { icon: <Wifi size={16} className="text-cyan-300" />, label: lang === 'en' ? '100%' : '१००%', value: lang === 'en' ? 'Secure' : 'सुरक्षित' },
-              { icon: <Search size={16} className="text-green-300" />, label: lang === 'en' ? 'Live' : 'लाइव', value: lang === 'en' ? 'Balance' : 'बैलेंस' },
-            ].map((stat, i) => (
-              <div key={i} className="bg-white/10 backdrop-blur-sm rounded-2xl px-3 py-2.5 flex flex-col items-center text-center gap-1">
-                {stat.icon}
-                <span className="text-white font-bold text-sm leading-none">{stat.label}</span>
-                <span className="text-purple-200 text-xs leading-none">{stat.value}</span>
-              </div>
-            ))}
-          </div>
+        {/* Nav links */}
+        <div className="flex items-center gap-1">
+          {[
+            { label: lang === 'en' ? 'Home' : 'होम', active: true },
+            { label: lang === 'en' ? 'Help' : 'सहायता', active: false },
+            { label: lang === 'en' ? 'About' : 'के बारे में', active: false },
+          ].map((item) => (
+            <button
+              key={item.label}
+              onClick={() => item.active ? null : showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!', 'success')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                item.active
+                  ? 'text-primary-600 border-b-2 border-primary-600 rounded-none'
+                  : `${textSecondary} hover:text-primary-600`
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
 
-        {/* Curved bottom edge */}
-        <div className="h-6 bg-slate-50 dark:bg-[#0e1726] rounded-t-[2rem] -mb-px relative z-10" />
+        {/* Right controls */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleLang}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${isDark ? 'border-[#253350] text-gray-300 hover:bg-[#253350]' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+          >
+            <Globe size={14} />
+            <span>{lang === 'en' ? 'हिंदी' : 'EN'}</span>
+          </button>
+          <button
+            onClick={() => updateSettings({ darkMode: !settings.darkMode })}
+            className={`p-2 rounded-full transition-all ${isDark ? 'bg-[#253350] text-yellow-300 hover:bg-[#2d3e5a]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition-all shadow-md shadow-primary-500/30"
+          >
+            <Settings size={16} />
+          </button>
+          <button
+            onClick={() => { resetForm(); setIsAddOpen(true); }}
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-full text-sm font-semibold hover:bg-primary-700 transition-all shadow-md shadow-primary-500/30 active:scale-95"
+          >
+            <Plus size={15} />
+            {lang === 'en' ? 'Add Meter' : 'मीटर जोड़ें'}
+          </button>
+        </div>
+      </nav>
+
+      {/* ════════════════════════════════════════════════════════
+          MOBILE HEADER
+      ════════════════════════════════════════════════════════ */}
+      <header className={`md:hidden flex items-center justify-between px-4 py-3 ${sectionBg} border-b ${isDark ? 'border-[#253350]' : 'border-gray-100'} sticky top-0 z-40`} style={{ paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))' }}>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center">
+            <Bolt size={14} className="text-yellow-300 fill-yellow-300" />
+          </div>
+          <span className={`font-bold text-base ${textPrimary}`}>{t.appName}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={toggleLang} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold border transition-all ${isDark ? 'border-[#253350] text-gray-300' : 'border-gray-200 text-gray-600'}`}>
+            <Globe size={11} />
+            {lang === 'en' ? 'हिंदी' : 'EN'}
+          </button>
+          <button onClick={() => updateSettings({ darkMode: !settings.darkMode })} className={`p-1.5 rounded-full transition-all ${isDark ? 'bg-[#253350] text-yellow-300' : 'bg-gray-100 text-gray-600'}`}>
+            {isDark ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          <button onClick={() => setIsSettingsOpen(true)} className="p-1.5 rounded-full bg-primary-600 text-white">
+            <Settings size={15} />
+          </button>
+        </div>
       </header>
 
-      {/* ─── MAIN CONTENT ─── */}
-      <main className="flex-1 px-4 sm:px-5 pt-2 pb-28 max-w-lg mx-auto w-full">
+      {/* ════════════════════════════════════════════════════════
+          HERO SECTION
+      ════════════════════════════════════════════════════════ */}
+      <section className={`relative overflow-hidden ${isDark ? 'bg-[#0e1726]' : 'bg-gradient-to-br from-[#e8f0fe] via-[#f0f5ff] to-[#e8f0fe]'}`}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-12 flex flex-col md:flex-row items-center gap-6 md:gap-10">
 
-        {/* How it works — only when no consumers */}
-        {consumers.length === 0 && (
-          <section className="mb-6">
-            <h2 className="text-base font-bold text-gray-700 dark:text-gray-300 mb-3">{t.home.statsTitle}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Left — text */}
+          <div className="flex-1 text-center md:text-left">
+            <p className={`text-sm sm:text-base font-medium mb-2 ${isDark ? 'text-blue-400' : 'text-primary-600'}`}>
+              {getGreeting()} 👋
+            </p>
+            <h1 className={`text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight mb-2 ${textPrimary}`}>
+              {lang === 'en' ? (
+                <>Smart Electricity<br /><span className="text-primary-600">Recharge</span></>
+              ) : (
+                <>स्मार्ट बिजली<br /><span className="text-primary-600">रिचार्ज</span></>
+              )}
+            </h1>
+            <p className={`text-sm sm:text-base mb-6 ${textSecondary}`}>
+              {lang === 'en' ? 'Fast. Secure. Reliable.' : 'तेज़। सुरक्षित। विश्वसनीय।'}
+            </p>
+
+            {/* Feature badges */}
+            <div className="flex flex-wrap justify-center md:justify-start gap-3">
               {[
-                { num: '1', title: t.home.step1Title, desc: t.home.step1Desc, color: 'bg-violet-50 dark:bg-violet-900/20 border-violet-100 dark:border-violet-800' },
-                { num: '2', title: t.home.step2Title, desc: t.home.step2Desc, color: 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800' },
-                { num: '3', title: t.home.step3Title, desc: t.home.step3Desc, color: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800' },
-              ].map((step) => (
-                <div key={step.num} className={`rounded-2xl border p-4 ${step.color}`}>
-                  <div className="w-7 h-7 premium-gradient rounded-full flex items-center justify-center text-white font-bold text-sm mb-2">
-                    {step.num}
+                { icon: <Bolt size={15} className="text-yellow-500 fill-yellow-500"/>, label: lang === 'en' ? 'Instant' : 'तुरंत', sub: lang === 'en' ? 'Recharge' : 'रिचार्ज' },
+                { icon: <Shield size={15} className="text-green-500"/>, label: lang === 'en' ? '100%' : '१००%', sub: lang === 'en' ? 'Secure' : 'सुरक्षित' },
+                { icon: <BarChart2 size={15} className="text-blue-500"/>, label: lang === 'en' ? 'Live' : 'लाइव', sub: lang === 'en' ? 'Balance' : 'बैलेंस' },
+              ].map((item, i) => (
+                <div key={i} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border shadow-sm ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
+                  {item.icon}
+                  <div>
+                    <p className={`text-xs font-bold leading-none ${textPrimary}`}>{item.label}</p>
+                    <p className={`text-[10px] leading-none mt-0.5 ${textSecondary}`}>{item.sub}</p>
                   </div>
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-1">{step.title}</h3>
-                  <p className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed">{step.desc}</p>
                 </div>
               ))}
             </div>
-          </section>
-        )}
+          </div>
 
-        {/* Saved Meters Section */}
+          {/* Right — illustration */}
+          <div className="flex-shrink-0 w-full max-w-xs md:max-w-sm lg:max-w-md">
+            <HeroIllustration />
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════
+          MAIN CONTENT
+      ════════════════════════════════════════════════════════ */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-6 pb-28 md:pb-10 space-y-8">
+
+        {/* ── Saved Meters ──────────────────────────────────── */}
         <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-gray-800 dark:text-gray-200">{t.home.savedMeters}</h2>
-            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium bg-gray-100 dark:bg-[#1c2a42] rounded-full px-2.5 py-1">
-              {consumers.length} {lang === 'en' ? 'saved' : 'सहेजे'}
-            </span>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className={`text-lg font-bold ${textPrimary}`}>{t.home.savedMeters}</h2>
+            <button
+              onClick={() => { resetForm(); setIsAddOpen(true); }}
+              className="flex items-center gap-1 text-sm text-primary-600 font-semibold hover:underline"
+            >
+              {lang === 'en' ? 'View all' : 'सभी देखें'} <ArrowRight size={14}/>
+            </button>
           </div>
 
           {consumers.length === 0 ? (
-            <div className="bg-white dark:bg-[#1c2a42] rounded-3xl shadow-xl p-6 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary-50 dark:bg-primary-900/20 rounded-bl-full -z-10" />
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t.home.noMeters}</h2>
-              <p className="text-gray-500 dark:text-gray-400 leading-relaxed text-sm">
-                {t.home.noMetersHint}
-              </p>
+            <div className={`rounded-2xl border p-6 text-center ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100 shadow-sm'}`}>
+              <div className="w-14 h-14 bg-primary-50 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Bolt size={24} className="text-primary-600 fill-primary-100" />
+              </div>
+              <h3 className={`font-bold text-base mb-1 ${textPrimary}`}>{t.home.noMeters}</h3>
+              <p className={`text-sm mb-4 ${textSecondary}`}>{t.home.noMetersHint}</p>
               <button
                 onClick={() => { resetForm(); setIsAddOpen(true); }}
-                className="mt-5 inline-flex items-center gap-2 premium-gradient text-white rounded-full px-5 py-2.5 font-semibold text-sm shadow-lg shadow-primary-500/30 active:scale-95 transition-all"
+                className="inline-flex items-center gap-2 bg-primary-600 text-white px-5 py-2.5 rounded-full font-semibold text-sm shadow-lg shadow-primary-500/30 active:scale-95 transition-all hover:bg-primary-700"
               >
-                <Plus size={18} />
-                {t.home.addMeter}
+                <Plus size={16} /> {t.home.addMeter}
               </button>
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {consumers.map((consumer) => (
-                <div key={consumer.id} className="bg-white dark:bg-[#1c2a42] rounded-3xl shadow-sm border border-gray-100 dark:border-[#253350] overflow-hidden group relative">
-                  {/* Card header */}
-                  <div className="p-4 sm:p-5 pb-3 sm:pb-4 flex items-center justify-between border-b border-gray-100 dark:border-[#253350]/50">
-                    <div className="flex items-center gap-3 min-w-0">
-                      {/* Avatar */}
-                      <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl ${getAvatarColor(consumer.name)} flex items-center justify-center text-white font-bold text-xl flex-shrink-0 shadow-md`}>
+                <div key={consumer.id} className={`rounded-2xl border overflow-hidden shadow-sm hover:shadow-md transition-shadow ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
+                  {/* Card top */}
+                  <div className={`px-4 pt-4 pb-3 flex items-start justify-between border-b ${isDark ? 'border-[#253350]/60' : 'border-gray-50'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${getAvatarGradient(consumer.name)} flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0`}>
                         {consumer.name.charAt(0).toUpperCase()}
                       </div>
-                      <div className="min-w-0">
-                        <h3 className="font-bold text-gray-900 dark:text-white text-base sm:text-[17px] truncate">{consumer.name}</h3>
-                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-mono tracking-wide">CA: {consumer.caNumber}</p>
+                      <div>
+                        <h3 className={`font-bold text-base leading-tight ${textPrimary}`}>{consumer.name}</h3>
+                        <p className={`text-xs font-mono tracking-wide mt-0.5 ${textSecondary}`}>CA: {consumer.caNumber}</p>
                         {consumer.mobileNumber && (
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">📱 {consumer.mobileNumber}</p>
+                          <p className={`text-xs mt-0.5 ${textSecondary}`}>📱 {consumer.mobileNumber}</p>
+                        )}
+                        {consumer.preferredAmount && (
+                          <span className="inline-block mt-1 text-[10px] font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 border border-primary-100 dark:border-primary-800 rounded-full px-2 py-0.5">
+                            Default: ₹{consumer.preferredAmount}
+                          </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Amount badge + menu */}
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                      {consumer.preferredAmount && (
-                        <span className="hidden sm:block text-xs font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 border border-primary-100 dark:border-primary-800 rounded-full px-2.5 py-1">
-                          ₹{consumer.preferredAmount}
-                        </span>
+                    {/* 3-dot menu */}
+                    <div className="relative flex-shrink-0">
+                      <button
+                        onClick={() => setActionMenuId(actionMenuId === consumer.id ? null : consumer.id)}
+                        className={`p-1.5 rounded-full transition-colors ${isDark ? 'text-gray-400 hover:text-gray-200 hover:bg-[#253350]' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                      >
+                        <MoreVertical size={18} />
+                      </button>
+                      {actionMenuId === consumer.id && (
+                        <div className={`absolute right-0 top-full mt-1 w-44 rounded-xl shadow-xl border py-1.5 z-30 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100'}`}>
+                          <button
+                            onClick={() => { setEditingConsumer(consumer); setIsAddOpen(true); setActionMenuId(null); }}
+                            className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2.5 transition-colors ${isDark ? 'text-gray-200 hover:bg-[#253350]' : 'text-gray-700 hover:bg-gray-50'}`}
+                          >
+                            <Edit2 size={14} /> {t.delete.edit}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(consumer.id)}
+                            className="w-full px-4 py-2 text-left text-sm flex items-center gap-2.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <Trash2 size={14} /> {t.delete.delete}
+                          </button>
+                        </div>
                       )}
-                      <div className="relative">
-                        <button
-                          onClick={() => setActionMenuId(actionMenuId === consumer.id ? null : consumer.id)}
-                          className="p-2 -mr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          <MoreVertical size={20} />
-                        </button>
-                        {actionMenuId === consumer.id && (
-                          <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#1c2a42] rounded-xl shadow-lg border border-gray-100 dark:border-[#253350] py-2 z-20 animate-in fade-in zoom-in duration-200">
-                            <button
-                              onClick={() => {
-                                setEditingConsumer(consumer);
-                                setIsAddOpen(true);
-                                setActionMenuId(null);
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors"
-                            >
-                              <Edit2 size={15} /> {t.delete.edit}
-                            </button>
-                            <button
-                              onClick={() => handleDelete(consumer.id)}
-                              className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 transition-colors"
-                            >
-                              <Trash2 size={15} /> {t.delete.delete}
-                            </button>
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </div>
 
-                  {/* Mobile amount badge */}
-                  {consumer.preferredAmount && (
-                    <div className="sm:hidden px-4 pb-1">
-                      <span className="text-xs font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 border border-primary-100 dark:border-primary-800 rounded-full px-2.5 py-0.5">
-                        Default: ₹{consumer.preferredAmount}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Divider */}
-                  <div className="mx-4 h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-slate-700 to-transparent" />
-
                   {/* Action buttons */}
-                  <div className="p-3 sm:p-4 grid grid-cols-2 gap-2.5">
+                  <div className="p-3 flex flex-col gap-2">
                     <button
                       onClick={() => handleRecharge(consumer)}
-                      className="flex items-center justify-center gap-2 premium-gradient text-white rounded-xl h-11 sm:h-12 font-semibold text-sm shadow-md shadow-primary-500/25 hover:brightness-110 active:scale-95 transition-all"
+                      className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl h-11 font-semibold text-sm shadow-md shadow-primary-500/25 active:scale-95 transition-all"
                     >
                       <Zap size={16} className="text-yellow-300 fill-yellow-300" />
                       {t.home.rechargeNow}
                     </button>
                     <button
                       onClick={() => handleCheckBalance(consumer)}
-                      className="flex items-center justify-center gap-2 bg-white dark:bg-[#1c2a42] border border-gray-200 dark:border-[#253350] text-gray-700 dark:text-gray-200 rounded-xl h-11 sm:h-12 font-semibold text-sm hover:border-primary-300 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-slate-700 active:scale-95 transition-all"
+                      className={`w-full flex items-center justify-center gap-2 rounded-xl h-10 font-semibold text-sm border active:scale-95 transition-all ${isDark ? 'bg-[#1c2a42] border-[#253350] text-gray-200 hover:border-primary-500 hover:text-primary-400' : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50'}`}
                     >
-                      <Search size={15} className="text-primary-500" />
+                      <Search size={14} className="text-primary-500" />
                       {t.home.checkBalance}
                     </button>
                   </div>
                 </div>
               ))}
+
+              {/* Add new card */}
+              <button
+                onClick={() => { resetForm(); setIsAddOpen(true); }}
+                className={`hidden md:flex rounded-2xl border-2 border-dashed min-h-[160px] items-center justify-center gap-2 text-sm font-semibold transition-all ${isDark ? 'border-[#253350] text-gray-500 hover:border-primary-500 hover:text-primary-400' : 'border-gray-200 text-gray-400 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50/50'}`}
+              >
+                <Plus size={18} /> {lang === 'en' ? 'Add Meter' : 'मीटर जोड़ें'}
+              </button>
             </div>
           )}
         </section>
 
-        {/* How it works — when there ARE consumers, shown at bottom */}
-        {consumers.length > 0 && (
-          <section className="mt-6 mb-2">
-            <div className="glass-card p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold text-gray-700 dark:text-gray-300">{t.home.statsTitle}</h2>
-                <ChevronRight size={16} className="text-gray-400" />
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                {[
-                  { icon: '⚡', label: t.home.step1Title },
-                  { icon: '🤖', label: t.home.step2Title },
-                  { icon: '📱', label: t.home.step3Title },
-                ].map((step, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1">
-                    <span className="text-xl">{step.icon}</span>
-                    <span className="text-xs text-gray-600 dark:text-gray-400 font-medium leading-tight">{step.label}</span>
+        {/* ── Quick Actions ──────────────────────────────────── */}
+        <section>
+          <h2 className={`text-lg font-bold mb-4 ${textPrimary}`}>{lang === 'en' ? 'Quick Actions' : 'त्वरित क्रियाएं'}</h2>
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            {quickActions.map((action, i) => (
+              <button
+                key={i}
+                onClick={action.onClick}
+                className={`rounded-2xl border p-4 flex flex-col items-center text-center gap-2 hover:shadow-md active:scale-95 transition-all ${isDark ? 'bg-[#1c2a42] border-[#253350] hover:border-primary-500/50' : 'bg-white border-gray-100 hover:border-primary-200 shadow-sm'}`}
+              >
+                <div className={`w-11 h-11 rounded-xl ${action.color} flex items-center justify-center`}>
+                  {action.icon}
+                </div>
+                <div>
+                  <p className={`text-xs font-bold leading-tight ${textPrimary}`}>{action.label}</p>
+                  <p className={`text-[10px] leading-tight mt-0.5 hidden sm:block ${textSecondary}`}>{action.desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* ── How it works ─────────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className={`text-lg font-bold ${textPrimary}`}>{lang === 'en' ? 'How it works' : 'यह कैसे काम करता है'}</h2>
+            <button className="text-sm text-primary-600 font-semibold flex items-center gap-1 hover:underline">
+              {lang === 'en' ? 'View all' : 'सभी देखें'} <ArrowRight size={14}/>
+            </button>
+          </div>
+          <div className={`rounded-2xl border p-5 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100 shadow-sm'}`}>
+            <div className="flex items-start gap-2 sm:gap-4 overflow-x-auto pb-1">
+              {howItWorks.map((step, i) => (
+                <div key={i} className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                  <div className="flex flex-col items-center text-center w-20 sm:w-24">
+                    <div className="relative mb-2">
+                      <div className={`w-12 h-12 rounded-xl ${step.bg} flex items-center justify-center`}>
+                        {step.icon}
+                      </div>
+                      <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                        {step.num}
+                      </span>
+                    </div>
+                    <p className={`text-xs font-bold leading-tight ${textPrimary}`}>{step.title}</p>
+                    <p className={`text-[10px] mt-0.5 leading-tight hidden sm:block ${textSecondary}`}>{step.desc}</p>
                   </div>
+                  {i < howItWorks.length - 1 && (
+                    <ArrowRight size={18} className={`flex-shrink-0 mb-4 ${isDark ? 'text-[#253350]' : 'text-gray-300'}`} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Security Banner ───────────────────────────────── */}
+        <section className={`rounded-2xl border p-5 flex items-center gap-4 ${isDark ? 'bg-[#162033] border-[#253350]' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100'}`}>
+          <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30 flex-shrink-0">
+            <Shield size={22} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`font-bold text-sm ${isDark ? 'text-primary-300' : 'text-primary-700'}`}>
+              {lang === 'en' ? 'Your security is our priority' : 'आपकी सुरक्षा हमारी प्राथमिकता है'}
+            </p>
+            <p className={`text-xs mt-0.5 leading-relaxed ${textSecondary}`}>
+              {lang === 'en'
+                ? 'We use advanced encryption and secure servers to keep your information safe.'
+                : 'हम आपकी जानकारी को सुरक्षित रखने के लिए उन्नत एन्क्रिप्शन और सुरक्षित सर्वर का उपयोग करते हैं।'}
+            </p>
+          </div>
+          <div className={`hidden sm:flex flex-col items-center gap-1 flex-shrink-0 ${isDark ? 'text-[#253350]' : 'text-blue-200'}`}>
+            <div className="flex gap-1">
+              {[...Array(3)].map((_,i) => <div key={i} className={`w-2 h-6 rounded-full ${isDark ? 'bg-[#253350]' : 'bg-blue-200'}`} style={{height: `${16+i*6}px`}} />)}
+            </div>
+          </div>
+        </section>
+
+        {/* Disclaimer */}
+        <p className={`text-[10px] text-center leading-relaxed pb-2 ${textSecondary}`}>
+          {t.home.disclaimer}
+        </p>
+      </main>
+
+      {/* ════════════════════════════════════════════════════════
+          DESKTOP FOOTER
+      ════════════════════════════════════════════════════════ */}
+      <footer className={`hidden md:block border-t ${isDark ? 'bg-[#0a1120] border-[#253350]' : 'bg-[#1a237e]'}`}>
+        <div className="max-w-6xl mx-auto px-10 py-10">
+          <div className="grid grid-cols-4 gap-8">
+            {/* Brand */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center">
+                  <Bolt size={14} className="text-yellow-300 fill-yellow-300" />
+                </div>
+                <span className="font-bold text-white text-base">{t.appName}</span>
+              </div>
+              <p className="text-blue-300 text-xs leading-relaxed">
+                {lang === 'en' ? 'Smart way to manage your electricity recharge.' : 'बिजली रिचार्ज प्रबंधन का स्मार्ट तरीका।'}
+              </p>
+            </div>
+            {/* Quick Links */}
+            <div>
+              <h4 className="text-white font-semibold text-sm mb-3">{lang === 'en' ? 'Quick Links' : 'त्वरित लिंक'}</h4>
+              {[lang === 'en' ? 'Home' : 'होम', lang === 'en' ? 'Help' : 'सहायता', lang === 'en' ? 'About' : 'के बारे में'].map(l => (
+                <button key={l} className="block text-blue-300 text-xs hover:text-white mb-1.5 transition-colors text-left">{l}</button>
+              ))}
+            </div>
+            {/* Support */}
+            <div>
+              <h4 className="text-white font-semibold text-sm mb-3">{lang === 'en' ? 'Support' : 'सहायता'}</h4>
+              {['FAQs', lang === 'en' ? 'Contact Us' : 'हमसे संपर्क करें', lang === 'en' ? 'Privacy Policy' : 'गोपनीयता नीति', lang === 'en' ? 'Terms & Conditions' : 'नियम और शर्तें'].map(l => (
+                <button key={l} className="block text-blue-300 text-xs hover:text-white mb-1.5 transition-colors text-left">{l}</button>
+              ))}
+            </div>
+            {/* Social */}
+            <div>
+              <h4 className="text-white font-semibold text-sm mb-3">{lang === 'en' ? 'Connect with us' : 'हमसे जुड़ें'}</h4>
+              <div className="flex gap-2">
+                {['f', 't', 'in'].map((s) => (
+                  <button key={s} className="w-8 h-8 bg-blue-700 hover:bg-primary-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors">
+                    {s}
+                  </button>
                 ))}
               </div>
             </div>
-          </section>
-        )}
-        {/* Disclaimer */}
-        <div className="mt-8 mb-6 px-2">
-          <p className="text-[11px] text-gray-400 text-center leading-relaxed font-medium">
-            {t.home.disclaimer}
-          </p>
+          </div>
+          <div className="border-t border-blue-800 mt-8 pt-4 text-center">
+            <p className="text-blue-400 text-xs">© 2026 Bijli Recharge. All rights reserved.</p>
+          </div>
         </div>
-      </main>
+      </footer>
 
-      {/* ─── FAB ─── */}
-      <FAB
-        icon={<Plus size={24} />}
-        onClick={() => { resetForm(); setIsAddOpen(true); }}
-      />
+      {/* ════════════════════════════════════════════════════════
+          MOBILE BOTTOM NAVIGATION
+      ════════════════════════════════════════════════════════ */}
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 z-40 border-t ${isDark ? 'bg-[#162033] border-[#253350]' : 'bg-white border-gray-100'} shadow-2xl`}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <div className="flex items-end justify-around px-2 pt-2 pb-2">
+          {[
+            { icon: <HomeIcon size={20} />, label: lang === 'en' ? 'Home' : 'होम', active: true },
+          ].map((item) => (
+            <button
+              key={item.label}
+              onClick={() => !item.active && showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!')}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${item.active ? 'text-primary-600' : textSecondary}`}
+            >
+              {item.icon}
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </button>
+          ))}
 
-      {/* ─── ADD / EDIT MODAL ─── */}
-      <Modal
-        isOpen={isAddOpen}
-        onClose={() => { setIsAddOpen(false); resetForm(); }}
-        title={editingConsumer ? t.form.editTitle : t.form.addTitle}
-      >
+          {/* Center FAB */}
+          <button
+            onClick={() => { resetForm(); setIsAddOpen(true); }}
+            className="-mt-5 w-14 h-14 bg-primary-600 hover:bg-primary-700 text-white rounded-full flex items-center justify-center shadow-xl shadow-primary-500/40 active:scale-95 transition-all border-4 border-white dark:border-[#162033]"
+          >
+            <Bolt size={22} className="text-yellow-300 fill-yellow-300" />
+          </button>
+
+          {[
+            { icon: <HelpCircle size={20} />, label: lang === 'en' ? 'Help' : 'सहायता', active: false },
+            { icon: <User size={20} />, label: lang === 'en' ? 'Profile' : 'प्रोफ़ाइल', active: false },
+          ].map((item) => (
+            <button
+              key={item.label}
+              onClick={() => item.label === (lang === 'en' ? 'Profile' : 'प्रोफ़ाइल') ? setIsSettingsOpen(true) : showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!')}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${textSecondary}`}
+            >
+              {item.icon}
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {/* ════════════════════════════════════════════════════════
+          ADD / EDIT MODAL
+      ════════════════════════════════════════════════════════ */}
+      <Modal isOpen={isAddOpen} onClose={() => { setIsAddOpen(false); resetForm(); }} title={editingConsumer ? t.form.editTitle : t.form.addTitle}>
         <div className="flex flex-col gap-4">
-          {/* Form intro */}
-          <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-primary-50 to-indigo-50 dark:from-primary-900/30 dark:to-indigo-900/30 rounded-xl border border-primary-100 dark:border-primary-800">
-            <div className="w-9 h-9 premium-gradient rounded-xl flex items-center justify-center flex-shrink-0">
+          <div className={`flex items-center gap-3 p-3 rounded-xl border ${isDark ? 'bg-primary-900/30 border-primary-800' : 'bg-gradient-to-r from-primary-50 to-indigo-50 border-primary-100'}`}>
+            <div className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
               <Bolt size={18} className="text-yellow-300 fill-yellow-300" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-primary-700 dark:text-primary-300 uppercase tracking-wide">SBPDCL Portal</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight mt-0.5">
-                {lang === 'en'
-                  ? 'South Bihar Power Distribution Company'
-                  : 'दक्षिण बिहार विद्युत वितरण कंपनी'}
+              <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-primary-300' : 'text-primary-700'}`}>SBPDCL Portal</p>
+              <p className={`text-xs leading-tight mt-0.5 ${textSecondary}`}>
+                {lang === 'en' ? 'South Bihar Power Distribution Company' : 'दक्षिण बिहार विद्युत वितरण कंपनी'}
               </p>
             </div>
           </div>
-
-          <TextField
-            label={t.form.labelName}
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder={t.form.placeholderName}
-          />
-          <TextField
-            label={t.form.labelCA}
-            type="number"
-            value={caNumber}
-            onChange={e => setCaNumber(e.target.value)}
-            placeholder={t.form.placeholderCA}
-          />
-
-          {/* 2-col for mobile/amount */}
+          <TextField label={t.form.labelName} value={name} onChange={e => setName(e.target.value)} placeholder={t.form.placeholderName} />
+          <TextField label={t.form.labelCA} type="number" value={caNumber} onChange={e => setCaNumber(e.target.value)} placeholder={t.form.placeholderCA} />
           <div className="grid grid-cols-2 gap-3">
-            <TextField
-              label={t.form.labelMobile}
-              type="tel"
-              value={mobile}
-              onChange={e => setMobile(e.target.value)}
-              placeholder={t.form.placeholderMobile}
-            />
-            <TextField
-              label={t.form.labelAmount}
-              type="number"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder={t.form.placeholderAmount}
-            />
+            <TextField label={t.form.labelMobile} type="tel" value={mobile} onChange={e => setMobile(e.target.value)} placeholder={t.form.placeholderMobile} />
+            <TextField label={t.form.labelAmount} type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder={t.form.placeholderAmount} />
           </div>
-
-          <Select
-            label={t.form.labelGateway}
-            value={gateway}
-            onChange={e => setGateway(e.target.value)}
-            options={[
-              { value: 'Bank of Baroda', label: 'Bank of Baroda' },
-              { value: 'Easebuzz', label: 'Easebuzz' },
-              { value: 'HDFC', label: 'HDFC' },
-            ]}
-          />
-
-          <div className="pt-2">
+          <Select label={t.form.labelGateway} value={gateway} onChange={e => setGateway(e.target.value)} options={[
+            { value: 'Bank of Baroda', label: 'Bank of Baroda' },
+            { value: 'Easebuzz', label: 'Easebuzz' },
+            { value: 'HDFC', label: 'HDFC' },
+          ]} />
+          <div className="pt-1">
             <Button fullWidth onClick={handleSave} disabled={!name || !caNumber}>
               {editingConsumer ? t.form.update : t.form.save}
             </Button>
@@ -536,25 +708,18 @@ export function Home() {
         </div>
       </Modal>
 
-      {/* ─── TOAST ─── */}
+      {/* Toast */}
       {toastMessage && (
-        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 z-50 animate-in fade-in slide-in-from-bottom-5 max-w-[90vw] ${
-          toastType === 'error'
-            ? 'bg-red-600 text-white'
-            : 'bg-gray-900 text-white'
-        }`}>
+        <div className={`fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 z-50 max-w-[90vw] ${toastType === 'error' ? 'bg-red-600' : 'bg-gray-900'} text-white`}>
           <span className="text-lg">{toastType === 'error' ? '⚠️' : '⚡'}</span>
           <p className="text-sm font-medium">{toastMessage}</p>
         </div>
       )}
 
-      {/* ─── SETTINGS MODAL ─── */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
+      {/* Settings Modal */}
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
-      {/* ─── BALANCE MODAL ─── */}
+      {/* Balance Modal */}
       <BalanceModal
         isOpen={isBalanceOpen}
         onClose={() => { setIsBalanceOpen(false); setBalanceDetails(null); }}
@@ -564,4 +729,3 @@ export function Home() {
     </div>
   );
 }
-
