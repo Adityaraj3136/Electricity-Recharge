@@ -262,53 +262,98 @@ export function Home() {
         setIsBalanceOpen(true); setIsBalanceLoading(true); setBalanceDetails(null);
         const win = window as any;
         if (win.cordova?.InAppBrowser) {
-          const browser = win.cordova.InAppBrowser.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank', 'hidden=yes,location=no,clearcache=yes,clearsessioncache=yes');
+          const browser = win.cordova.InAppBrowser.open(
+            'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
+            '_blank',
+            'hidden=yes,location=no,clearcache=yes,clearsessioncache=yes'
+          );
+
+          let pollInterval: any;
+          let done = false;
+
+          const finish = (success: boolean, details?: any, errMsg?: string) => {
+            if (done) return;
+            done = true;
+            if (pollInterval) clearInterval(pollInterval);
+            browser.close();
+            if (success) {
+              setBalanceDetails(details);
+              setIsBalanceLoading(false);
+            } else {
+              showToast(`Error: ${errMsg}`, 'error');
+              setIsBalanceOpen(false);
+              setIsBalanceLoading(false);
+            }
+          };
+
+          // Listen for postMessage from automation script
           browser.addEventListener('message', (event: any) => {
             try {
               const data = JSON.parse(event.data);
-              if (data.type === 'BALANCE_DETAILS') { setBalanceDetails(data.details); setIsBalanceLoading(false); browser.close(); }
-              else if (data.type === 'BALANCE_ERROR') { showToast(`Error: ${data.error}`, 'error'); setIsBalanceOpen(false); browser.close(); }
+              if (data.type === 'BALANCE_DETAILS') finish(true, data.details);
+              else if (data.type === 'BALANCE_ERROR') finish(false, null, data.error);
+              else if (data.type === 'CLOSE_BROWSER') finish(false, null, 'Closed');
             } catch (e) {}
           });
-          let balanceScriptInjected = false;
-          let pollInterval: any;
-          browser.addEventListener('loadstop', () => {
-            if (balanceScriptInjected) return;
-            balanceScriptInjected = true;
-            browser.executeScript({ code: automationScript });
-            
+
+          // Reset injection flag on EVERY page load so we can detect which page loaded
+          let lastInjectedUrl = '';
+          browser.addEventListener('loadstop', (event: any) => {
+            const url = (event.url || '') as string;
+            // Only inject once on the actual searchbill page (after Angular bootstraps)
+            if (!url.includes('searchbill') && !url.includes('cportal')) return;
+            if (url === lastInjectedUrl) return; // already injected on this URL
+            lastInjectedUrl = url;
+
+            // Wait 3s for Angular to fully render the search form before injecting
             setTimeout(() => {
-              browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.fetchSbpdclBalance==='function') window.fetchSbpdclBalance('${consumer.caNumber}'); },1500);` });
-              
-              // Fallback polling mechanism
-              pollInterval = setInterval(() => {
-                browser.executeScript({ code: `JSON.stringify({ result: window.__balanceResult, error: window.__balanceError })` }, (res: any) => {
-                  try {
-                    const data = JSON.parse(res[0]);
-                    if (data.result) {
-                      setBalanceDetails(data.result);
-                      setIsBalanceLoading(false);
-                      clearInterval(pollInterval);
-                      browser.close();
-                    } else if (data.error) {
-                      showToast(`Error: ${data.error}`, 'error');
-                      setIsBalanceOpen(false);
-                      clearInterval(pollInterval);
-                      browser.close();
+              if (done) return;
+              browser.executeScript({ code: automationScript });
+              setTimeout(() => {
+                if (done) return;
+                browser.executeScript({
+                  code: `(function(){
+                    if(typeof window.fetchSbpdclBalance==='function'){
+                      window.fetchSbpdclBalance('${consumer.caNumber}');
+                    } else {
+                      window.__balanceError = 'Script not loaded';
                     }
-                  } catch (e) {}
+                  })();`
                 });
-              }, 2000);
-            }, 500);
+
+                // Polling fallback every 2s
+                if (pollInterval) clearInterval(pollInterval);
+                pollInterval = setInterval(() => {
+                  if (done) return;
+                  browser.executeScript(
+                    { code: `JSON.stringify({ result: window.__balanceResult || null, error: window.__balanceError || null })` },
+                    (res: any) => {
+                      if (done) return;
+                      try {
+                        const data = JSON.parse(res?.[0] || '{}');
+                        if (data.result) finish(true, data.result);
+                        else if (data.error) finish(false, null, data.error);
+                      } catch (e) {}
+                    }
+                  );
+                }, 2000);
+              }, 1500);
+            }, 3000);
           });
-          
+
           browser.addEventListener('exit', () => {
             if (pollInterval) clearInterval(pollInterval);
+            if (!done) { done = true; setIsBalanceLoading(false); setIsBalanceOpen(false); }
           });
+
+          // Safety timeout: give up after 60s
+          setTimeout(() => finish(false, null, 'Timed out fetching balance'), 60000);
+
         } else { showToast(t.toast.browserError, 'error'); setIsBalanceOpen(false); }
       } else { showToast(t.toast.balanceOnly, 'error'); }
     });
   };
+
 
   // ─── Shared styles ──────────────────────────────────────────────────────
   const isDark = settings.darkMode;
