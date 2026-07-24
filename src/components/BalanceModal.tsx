@@ -53,7 +53,7 @@ export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view
                 <User size={20} />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-lg leading-tight">{details.name}</h3>
+                <h3 className="font-bold text-gray-900 text-lg leading-tight capitalize">{details.name}</h3>
                 <p className="text-xs text-primary-600 font-mono font-medium">CA: {details.caNumber}</p>
               </div>
             </div>

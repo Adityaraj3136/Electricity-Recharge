@@ -657,7 +657,7 @@ export function Home() {
                           {consumer.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <h3 className={`font-bold text-base leading-tight ${textPrimary}`}>{consumer.name}</h3>
+                          <h3 className={`font-bold text-base leading-tight capitalize ${textPrimary}`}>{consumer.name}</h3>
                           <p className={`text-xs font-mono tracking-wide mt-0.5 ${textSecondary}`}>CA: {consumer.caNumber}</p>
                           {consumer.mobileNumber && (
                             <p className={`text-xs mt-0.5 ${textSecondary}`}>📱 {consumer.mobileNumber}</p>
@@ -774,7 +774,7 @@ export function Home() {
                         {consumer.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h3 className={`font-bold text-base leading-tight ${textPrimary}`}>{consumer.name}</h3>
+                        <h3 className={`font-bold text-base leading-tight capitalize ${textPrimary}`}>{consumer.name}</h3>
                         <p className={`text-xs font-medium mt-0.5 ${textSecondary}`}>CA: {consumer.caNumber}</p>
                         {consumer.mobileNumber && (
                           <p className={`text-xs mt-0.5 ${textSecondary}`}>📱 {consumer.mobileNumber}</p>
@@ -1118,7 +1118,7 @@ export function Home() {
               <AppLogo className="w-7 h-7 bg-primary-600 rounded-lg flex-shrink-0" />
               <div>
                 <p className="text-white font-semibold text-sm leading-tight">
-                  {iframeConsumer.name} — Recharge
+                  <span className="capitalize">{iframeConsumer.name}</span> — Recharge
                 </p>
                 <p className="text-slate-400 text-xs font-mono">CA: {iframeConsumer.caNumber}</p>
               </div>
