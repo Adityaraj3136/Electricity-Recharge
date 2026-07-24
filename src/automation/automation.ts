@@ -243,6 +243,26 @@ export const automationScript = `
         await waitForUserAmount(); // wait up to 10s for user
       }
 
+      if (config.gateway) {
+        window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting Gateway' }, '*');
+        let imgAltMatch = '';
+        if (config.gateway === 'Bank of Baroda') imgAltMatch = 'Bank Of Baroda';
+        else if (config.gateway === 'Federal Bank') imgAltMatch = 'Federal Bank';
+        else if (config.gateway === 'HDFC') imgAltMatch = 'Hdfc';
+        
+        if (imgAltMatch) {
+          const allImgs = Array.from(document.querySelectorAll('mat-radio-button img'));
+          const targetImg = allImgs.find(img => (img.alt || '').toLowerCase().includes(imgAltMatch.toLowerCase()));
+          if (targetImg) {
+            const radioBtn = targetImg.closest('mat-radio-button');
+            if (radioBtn) {
+              radioBtn.click();
+              await wait(500);
+            }
+          }
+        }
+      }
+
       window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Opening payment' }, '*');
       await clickPayNow();
 

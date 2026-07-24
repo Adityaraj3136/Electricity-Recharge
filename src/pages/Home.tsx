@@ -199,6 +199,15 @@ export function Home() {
              'zoom=no','clearcache=yes','clearsessioncache=yes','hardwareback=yes','beforeload=yes'].join(',')
           );
           
+          browser.addEventListener('message', (event: any) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === 'CLOSE_BROWSER') {
+                browser.close();
+              }
+            } catch (e) {}
+          });
+
           browser.addEventListener('beforeload', (event: any, callback: any) => {
             const url = event.url || '';
             const isUpiIntent = url.startsWith('upi://') || url.startsWith('intent://') || 
@@ -213,10 +222,29 @@ export function Home() {
 
           let scriptInjected = false;
           browser.addEventListener('loadstop', () => {
+            // Inject persistent floating Home FAB on every page load
+            browser.executeScript({ code: `
+              (function() {
+                if (document.getElementById('br-home-fab')) return;
+                const fab = document.createElement('div');
+                fab.id = 'br-home-fab';
+                fab.innerHTML = '🏠 Home';
+                fab.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#2563eb; color:white; padding:12px 20px; border-radius:30px; font-family:sans-serif; font-weight:bold; font-size:14px; box-shadow:0 4px 12px rgba(37,99,235,0.4); z-index:2147483647; cursor:pointer; display:flex; align-items:center; gap:6px;';
+                fab.onclick = function() {
+                  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cordova_iab) {
+                    window.webkit.messageHandlers.cordova_iab.postMessage(JSON.stringify({ type: 'CLOSE_BROWSER' }));
+                  } else {
+                    window.location.href = 'gap-iab://close';
+                  }
+                };
+                document.body.appendChild(fab);
+              })();
+            `});
+
             if (scriptInjected) return;
             scriptInjected = true;
             browser.executeScript({ code: automationScript });
-            setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.startSbpdclAutomation==='function') window.startSbpdclAutomation({caNumber: '${consumer.caNumber}', mobileNumber: '${consumer.mobileNumber || ''}', amount: '${consumer.preferredAmount || ''}'}); },1500);` }), 500);
+            setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.startSbpdclAutomation==='function') window.startSbpdclAutomation({caNumber: '${consumer.caNumber}', mobileNumber: '${consumer.mobileNumber || ''}', amount: '${consumer.preferredAmount || ''}', gateway: '${consumer.preferredGateway || ''}'}); },1500);` }), 500);
           });
         } else { window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank'); }
       } else {
@@ -757,7 +785,7 @@ export function Home() {
           </div>
           <Select label={t.form.labelGateway} value={gateway} onChange={e => setGateway(e.target.value)} options={[
             { value: 'Bank of Baroda', label: 'Bank of Baroda' },
-            { value: 'Easebuzz', label: 'Easebuzz' },
+            { value: 'Federal Bank', label: 'Federal Bank' },
             { value: 'HDFC', label: 'HDFC' },
           ]} />
           <div className="pt-1">
