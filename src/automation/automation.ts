@@ -38,15 +38,29 @@ export const automationScript = `
 
   // Angular-compatible input fill
   function fillInput(input, value) {
-    input.focus();
-    input.dispatchEvent(new Event('focus', { bubbles: true }));
-    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    nativeSetter.call(input, value);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
-    input.blur();
-    input.dispatchEvent(new Event('blur', { bubbles: true }));
+    try {
+      input.focus();
+      input.dispatchEvent(new Event('focus', { bubbles: true, composed: true }));
+      
+      const descriptor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+      if (descriptor && descriptor.set) {
+        descriptor.set.call(input, value);
+      } else {
+        input.value = value;
+      }
+      
+      input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+      input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, composed: true, key: 'Enter' }));
+      input.blur();
+      input.dispatchEvent(new Event('blur', { bubbles: true, composed: true }));
+      input.dispatchEvent(new Event('focusout', { bubbles: true, composed: true }));
+    } catch(e) {
+      console.error("fillInput error", e);
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+    }
   }
 
   async function fillCANumber(caNumber) {
@@ -85,18 +99,22 @@ export const automationScript = `
   async function selectAmount(amount) {
     // Try preset amount buttons (e.g. ₹500, ₹1000)
     try {
-      const btn = await waitForElement('button', [], '₹' + amount, 3000);
-      btn.click(); return;
+      const btn = await waitForElement('button', [], '₹' + amount, 2000);
+      btn.click(); 
+      await wait(500);
+      return;
     } catch(e) {}
+    
     // Try custom amount input
     try {
       const input = await waitForElement(
         'input[formcontrolname="payAmount"]',
-        ['input[placeholder*="Amount"]'], '', 3000
+        ['input[formcontrolname="amount"]', 'input[placeholder*="Amount" i]', 'input[placeholder*="amount" i]'], '', 8000
       );
       fillInput(input, amount);
+      await wait(500);
     } catch(e) {
-      throw new Error("Could not set amount");
+      throw new Error("Could not find amount input field");
     }
   }
 
