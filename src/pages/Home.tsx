@@ -196,8 +196,21 @@ export function Home() {
             'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank',
             ['location=no','toolbar=yes','toolbarcolor=#2563eb','closebuttoncaption=✕ Close',
              'closebuttoncolor=#ffffff','hidenavigationbuttons=yes','hideurlbar=yes',
-             'zoom=no','clearcache=yes','clearsessioncache=yes','hardwareback=yes'].join(',')
+             'zoom=no','clearcache=yes','clearsessioncache=yes','hardwareback=yes','beforeload=yes'].join(',')
           );
+          
+          browser.addEventListener('beforeload', (event: any, callback: any) => {
+            const url = event.url || '';
+            const isUpiIntent = url.startsWith('upi://') || url.startsWith('intent://') || 
+                                url.startsWith('paytmmp://') || url.startsWith('phonepe://') || 
+                                url.startsWith('tez://') || url.startsWith('gpay://');
+            if (isUpiIntent) {
+              win.cordova.InAppBrowser.open(url, '_system');
+            } else if (callback) {
+              callback(url);
+            }
+          });
+
           let scriptInjected = false;
           browser.addEventListener('loadstop', () => {
             if (scriptInjected) return;
