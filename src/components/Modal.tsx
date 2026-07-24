@@ -49,7 +49,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'sm:max-w-m
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+        className="modal-backdrop fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
         style={{ opacity: visible ? 1 : 0 }}
         onClick={onClose}
       />

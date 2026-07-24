@@ -87,11 +87,14 @@ function App() {
     if (isNative()) {
       import('@capacitor/app').then(({ App: CapApp }) => {
         CapApp.addListener('backButton', () => {
-          const backdrop = document.querySelector('.modal-backdrop') as HTMLElement;
-          if (backdrop) {
-            backdrop.click(); // Close modal
+          const backdrops = document.querySelectorAll('.modal-backdrop');
+          if (backdrops.length > 0) {
+            const topBackdrop = backdrops[backdrops.length - 1] as HTMLElement;
+            topBackdrop.click(); // Close top-most modal
           } else {
-            CapApp.exitApp(); // Exit app
+            if (window.confirm('Are you sure you want to exit the app?')) {
+              CapApp.exitApp();
+            }
           }
         });
       });
