@@ -237,7 +237,7 @@ export function Home() {
       if (isNaN(bal) || bal >= 100) return; // Balance is fine
 
       const { LocalNotifications } = await import('@capacitor/local-notifications');
-      const { result: permResult } = await LocalNotifications.checkPermissions();
+      const { display: permResult } = await LocalNotifications.checkPermissions();
       if (permResult !== 'granted') {
         const { display } = await LocalNotifications.requestPermissions();
         if (display !== 'granted') return;

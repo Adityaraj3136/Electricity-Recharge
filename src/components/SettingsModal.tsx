@@ -61,53 +61,7 @@ async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
-/**
- * Schedule a low balance reminder on a given day of the month at 10:00 AM.
- * Shows saved meter names in the notification to help user know which meters to check.
- */
-async function scheduleMonthlyReminder(day: number, consumerNames: string[] = []) {
-  // Cancel previous
-  try { await LocalNotifications.cancel({ notifications: [{ id: 101 }] }); } catch (_) {}
 
-  const now = new Date();
-  // Next occurrence of 'day' at 10:00 AM
-  const next = new Date(now.getFullYear(), now.getMonth(), day, 10, 0, 0, 0);
-  // If that date is already past, move to next month
-  if (next <= now) {
-    next.setMonth(next.getMonth() + 1);
-  }
-
-  // Build a personalized notification body with meter names
-  let body = "Your electricity balance might be low. Don't forget to check and recharge today!";
-  if (consumerNames.length === 1) {
-    body = `⚡ ${consumerNames[0]}: Your electricity balance might be low. Open the app to check and recharge!`;
-  } else if (consumerNames.length > 1) {
-    const names = consumerNames.slice(0, 3).join(', ');
-    body = `Check balances for: ${names}${consumerNames.length > 3 ? ` +${consumerNames.length - 3} more` : ''}. Tap to open Bijli Recharge.`;
-  }
-
-  await LocalNotifications.schedule({
-    notifications: [
-      {
-        id: 101,
-        title: '⚡ Low Balance Reminder',
-        body,
-        channelId: 'bijli_reminder',
-        schedule: {
-          at: next,
-          repeats: true,
-          every: 'month',
-          allowWhileIdle: true,
-        },
-        sound: 'default',
-        smallIcon: 'ic_stat_icon_config_sample',
-        iconColor: '#2563EB',
-        actionTypeId: '',
-        extra: null,
-      },
-    ],
-  });
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

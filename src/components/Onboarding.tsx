@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const ONBOARDING_KEY = 'onboarding_done_v1';
 
