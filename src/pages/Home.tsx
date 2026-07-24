@@ -877,23 +877,23 @@ export function Home() {
 
           </div>
           <div className={`rounded-2xl border p-5 ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100 shadow-sm'}`}>
-            <div className="flex items-start gap-2 sm:gap-4 overflow-x-auto pb-1">
+            <div className="flex items-start justify-start md:justify-center gap-2 sm:gap-6 md:gap-10 overflow-x-auto pb-1 w-full">
               {howItWorks.map((step, i) => (
-                <div key={i} className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-                  <div className="flex flex-col items-center text-center w-20 sm:w-24">
-                    <div className="relative mb-2">
-                      <div className={`w-12 h-12 rounded-xl ${step.bg} flex items-center justify-center`}>
+                <div key={i} className="flex items-center gap-2 sm:gap-6 md:gap-10 flex-shrink-0">
+                  <div className="flex flex-col items-center text-center w-20 sm:w-28 md:w-32">
+                    <div className="relative mb-2 sm:mb-3">
+                      <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl ${step.bg} flex items-center justify-center`}>
                         {step.icon}
                       </div>
                       <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
                         {step.num}
                       </span>
                     </div>
-                    <p className={`text-xs font-bold leading-tight ${textPrimary}`}>{step.title}</p>
-                    <p className={`text-[10px] mt-0.5 leading-tight ${textSecondary}`}>{step.desc}</p>
+                    <p className={`text-xs sm:text-sm font-bold leading-tight ${textPrimary}`}>{step.title}</p>
+                    <p className={`text-[10px] sm:text-xs mt-1 leading-tight ${textSecondary}`}>{step.desc}</p>
                   </div>
                   {i < howItWorks.length - 1 && (
-                    <ArrowRight size={18} className={`flex-shrink-0 mb-4 ${isDark ? 'text-[#253350]' : 'text-gray-300'}`} />
+                    <ArrowRight size={20} className={`flex-shrink-0 mb-4 sm:mb-6 ${isDark ? 'text-[#253350]' : 'text-gray-300'}`} />
                   )}
                 </div>
               ))}
