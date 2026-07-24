@@ -50,7 +50,15 @@ export class ErrorBoundary extends Component<Props, State> {
 
           {this.state.error && (
             <div className="w-full max-w-md mb-8 p-4 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl text-left overflow-hidden">
-              <p className="text-xs font-mono text-red-800 dark:text-red-300 break-words">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 text-[10px] font-bold rounded-md tracking-wider">
+                  ERR_APP_01
+                </span>
+                <span className="text-xs font-semibold text-red-900 dark:text-red-200">
+                  Crash Report
+                </span>
+              </div>
+              <p className="text-xs font-mono text-red-800 dark:text-red-300 break-words mt-1">
                 {this.state.error.message}
               </p>
             </div>

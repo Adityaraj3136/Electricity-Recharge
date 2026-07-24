@@ -49,6 +49,7 @@ export function Home() {
   const { lang, t, toggleLang } = useLang();
   const { settings, updateSettings } = useSettings();
 
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingConsumer, setEditingConsumer] = useState<Consumer | null>(null);
   const [name, setName] = useState('');
@@ -421,6 +422,103 @@ export function Home() {
     });
   };
 
+  const fetchBalanceSilently = (consumer: Consumer): Promise<void> => {
+    return new Promise((resolve) => {
+      import('@capacitor/core').then(({ Capacitor }) => {
+        if (!Capacitor.isNativePlatform()) { resolve(); return; }
+        Network.getStatus().then(status => {
+          if (!status.connected) { resolve(); return; }
+          const win = window as any;
+          if (!win.cordova?.InAppBrowser) { resolve(); return; }
+
+          let done = false;
+          let pollInterval: any = null;
+          let timeout: any = null;
+
+          const finish = (data?: BalanceDetails) => {
+            if (done) return;
+            done = true;
+            if (pollInterval) clearInterval(pollInterval);
+            if (timeout) clearTimeout(timeout);
+            try { browser.close(); } catch(e){}
+            
+            if (data) {
+              updateConsumer(consumer.id, {
+                lastFetchedBalance: data.availableBalance,
+                lastFetchedDate: new Date().toLocaleDateString('en-GB'),
+                currentStatus: data.currentStatus
+              });
+              checkAndNotifyLowBalance(data, consumer.name);
+            }
+            resolve();
+          };
+
+          const browser = win.cordova.InAppBrowser.open(
+            'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
+            '_blank',
+            'hidden=yes'
+          );
+
+          timeout = setTimeout(() => finish(), 20000);
+
+          browser.addEventListener('message', (event: any) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === 'BALANCE_DETAILS') finish(data.details);
+              else if (data.type === 'BALANCE_ERROR' || data.type === 'CLOSE_BROWSER') finish();
+            } catch(e) {}
+          });
+
+          browser.addEventListener('loadstop', () => {
+            setTimeout(() => {
+              if (done) return;
+              browser.executeScript({ code: automationScript });
+              setTimeout(() => {
+                if (done) return;
+                browser.executeScript({
+                  code: `(function(){
+                    if(typeof window.fetchSbpdclBalance==='function'){
+                      window.fetchSbpdclBalance('${consumer.caNumber}');
+                    } else {
+                      window.__balanceError = 'Script not loaded';
+                    }
+                  })();`
+                });
+
+                pollInterval = setInterval(() => {
+                  if (done) return;
+                  browser.executeScript(
+                    { code: `JSON.stringify({ result: window.__balanceResult || null, error: window.__balanceError || null })` },
+                    (res: any) => {
+                      if (done) return;
+                      try {
+                        const data = JSON.parse(res?.[0] || '{}');
+                        if (data.result) finish(data.result);
+                        else if (data.error) finish();
+                      } catch (e) {}
+                    }
+                  );
+                }, 2000);
+              }, 1500);
+            }, 3000);
+          });
+          browser.addEventListener('exit', () => finish());
+        });
+      });
+    });
+  };
+
+  const syncAllMeters = async () => {
+    if (consumers.length === 0 || isSyncing) return;
+    setIsSyncing(true);
+    showToast('Syncing meters in background...', 'info');
+    for (const consumer of consumers) {
+      await fetchBalanceSilently(consumer);
+    }
+    setIsSyncing(false);
+    showToast('Sync complete');
+  };
+
   const handleQuickAction = (actionFn: (consumer: Consumer) => void) => {
     if (consumers.length === 1) {
       actionFn(consumers[0]);
@@ -622,7 +720,16 @@ export function Home() {
                   {consumers.length} {lang === 'en' ? `meter${consumers.length !== 1 ? 's' : ''} saved` : 'मीटर सेव'}
                 </p>
               </div>
-              <button
+              <div className="flex gap-2">
+                <button
+                  onClick={syncAllMeters}
+                  disabled={isSyncing || consumers.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold rounded-full text-xs active:scale-95 disabled:opacity-50 transition-all"
+                >
+                  <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
+                  {isSyncing ? 'Syncing...' : 'Sync All'}
+                </button>
+                <button
                 onClick={() => { resetForm(); setIsAddOpen(true); }}
                 className="p-2 bg-green-500 text-white rounded-full shadow-md shadow-green-500/25 active:scale-95 transition-all hover:bg-green-600"
                 title={t.home.addMeter}
@@ -630,6 +737,7 @@ export function Home() {
                 <Plus size={18} strokeWidth={3} />
               </button>
             </div>
+          </div>
 
             {consumers.length === 0 ? (
               <div className={`rounded-2xl border p-8 text-center ${isDark ? 'bg-[#1c2a42] border-[#253350]' : 'bg-white border-gray-100 shadow-sm'}`}>
@@ -671,6 +779,12 @@ export function Home() {
                             <span className="inline-block mt-1 ml-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-full px-2 py-0.5">
                               {consumer.preferredGateway}
                             </span>
+                          )}
+                          {consumer.lastFetchedBalance && (
+                            <div className="mt-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                              Balance: <span className={consumer.lastFetchedBalance.includes('-') ? 'text-red-500' : 'text-green-500'}>{consumer.lastFetchedBalance}</span>
+                              <span className="text-[10px] text-gray-400 font-normal ml-1">({consumer.lastFetchedDate})</span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -740,12 +854,22 @@ export function Home() {
         <section id="meters-section">
           <div className="flex items-center justify-between mb-4">
             <h2 className={`text-lg font-bold ${textPrimary}`}>{t.home.savedMeters}</h2>
-            <button
-              onClick={() => { setActiveTab('meters'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={syncAllMeters}
+                disabled={isSyncing || consumers.length === 0}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold rounded-full text-xs hover:bg-blue-100 disabled:opacity-50 transition-all"
+              >
+                <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
+                {isSyncing ? 'Syncing...' : 'Sync All'}
+              </button>
+              <button
+                onClick={() => { setActiveTab('meters'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className="flex items-center gap-1 text-sm text-primary-600 font-semibold hover:underline"
             >
               {lang === 'en' ? 'View all' : 'सभी देखें'} <ArrowRight size={14}/>
             </button>
+            </div>
           </div>
 
           {consumers.length === 0 ? (
@@ -783,6 +907,12 @@ export function Home() {
                           <span className="inline-block mt-1 text-[10px] font-bold text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/30 border border-primary-100 dark:border-primary-800 rounded-full px-2 py-0.5">
                             Default: ₹{consumer.preferredAmount}
                           </span>
+                        )}
+                        {consumer.lastFetchedBalance && (
+                          <div className="mt-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                            Balance: <span className={consumer.lastFetchedBalance.includes('-') ? 'text-red-500' : 'text-green-500'}>{consumer.lastFetchedBalance}</span>
+                            <span className="text-[10px] text-gray-400 font-normal ml-1">({consumer.lastFetchedDate})</span>
+                          </div>
                         )}
                       </div>
                     </div>

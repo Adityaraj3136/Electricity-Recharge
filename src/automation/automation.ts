@@ -97,22 +97,23 @@ export const automationScript = `
   }
 
   async function selectAmount(amount) {
-    // Try preset amount buttons (e.g. ₹500, ₹1000)
-    try {
-      const btn = await waitForElement('button', [], '₹' + amount, 2000);
-      btn.click(); 
-      await wait(500);
-      return;
-    } catch(e) {}
-    
-    // Try custom amount input
+    // Try custom amount input first (much faster and more reliable)
     try {
       const input = await waitForElement(
         'input[formcontrolname="payAmount"]',
-        ['input[formcontrolname="amount"]', 'input[placeholder*="Amount" i]', 'input[placeholder*="amount" i]'], '', 8000
+        ['input[formcontrolname="amount"]', 'input[placeholder*="Amount" i]', 'input[placeholder*="amount" i]'], '', 5000
       );
       fillInput(input, amount);
-      await wait(500);
+      await wait(300);
+      return;
+    } catch(e) {}
+
+    // Fallback: Try preset amount buttons
+    try {
+      const btn = await waitForElement('button', [], '₹' + amount, 1000);
+      btn.click(); 
+      await wait(300);
+      return;
     } catch(e) {
       throw new Error("Could not find amount input field");
     }
@@ -260,27 +261,33 @@ export const automationScript = `
       await fillMobile(config.mobileNumber || '9999999999');
 
       // 2. Select Gateway (Compulsory to enable Pay Now)
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting Gateway' }, '*');
-      // Wait for radio buttons to appear first - give Angular time to render
-      await wait(1200);
+      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting gateway' }, '*');
+      
+      try {
+        await waitForElement('mat-radio-button', [], '', 5000); // Wait for gateway options to render
+      } catch(e) {}
+
       let radioInput = null;
-      if (config.gateway) {
-        let imgAltMatch = '';
-        if (config.gateway === 'Bank of Baroda') imgAltMatch = 'baroda';
-        else if (config.gateway === 'Federal Bank') imgAltMatch = 'federal';
-        else if (config.gateway === 'HDFC') imgAltMatch = 'hdfc';
-        
-        if (imgAltMatch) {
-          const allImgs = Array.from(document.querySelectorAll('mat-radio-button img'));
-          const targetImg = allImgs.find(img => (img.alt || img.src || '').toLowerCase().includes(imgAltMatch));
-          if (targetImg) {
-            const radioBtn = targetImg.closest('mat-radio-button');
-            radioInput = radioBtn ? radioBtn.querySelector('input[type="radio"]') : null;
-          }
-        }
+      let targetGateway = config.gateway || 'HDFC'; // Default to HDFC if none selected
+      
+      let imgAltMatch = '';
+      if (targetGateway.includes('Baroda')) imgAltMatch = 'baroda';
+      else if (targetGateway.includes('Easebuzz')) imgAltMatch = 'easebuzz';
+      else imgAltMatch = 'hdfc';
+
+      const allImgs = Array.from(document.querySelectorAll('mat-radio-button img'));
+      const targetImg = allImgs.find(img => {
+        const txt = (img.alt || img.src || '').toLowerCase();
+        const parentTxt = (img.closest('mat-radio-button')?.textContent || '').toLowerCase();
+        return txt.includes(imgAltMatch) || parentTxt.includes(imgAltMatch);
+      });
+
+      if (targetImg) {
+        const radioBtn = targetImg.closest('mat-radio-button');
+        radioInput = radioBtn ? radioBtn.querySelector('input[type="radio"]') : null;
       }
       
-      // Fallback: pick the first radio input
+      // Fallback: pick the first radio input if target not found
       if (!radioInput) {
         radioInput = document.querySelector('mat-radio-button input[type="radio"]');
       }
@@ -289,7 +296,7 @@ export const automationScript = `
         radioInput.click();
         radioInput.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         radioInput.dispatchEvent(new Event('change', { bubbles: true }));
-        await wait(800);
+        await wait(500); // Shorter wait after clicking gateway
       }
 
       // 3. Select Amount — do this AFTER gateway to avoid Angular re-validating and clearing amount

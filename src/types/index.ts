@@ -5,6 +5,9 @@ export interface Consumer {
   mobileNumber?: string;
   preferredAmount?: string;
   preferredGateway?: 'Bank of Baroda' | 'Easebuzz' | 'HDFC';
+  lastFetchedBalance?: string;
+  lastFetchedDate?: string;
+  currentStatus?: string;
 }
 
 export interface AppSettings {
