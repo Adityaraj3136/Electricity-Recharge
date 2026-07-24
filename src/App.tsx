@@ -74,6 +74,21 @@ function AppInner() {
 }
 
 function App() {
+  useEffect(() => {
+    if (isNative()) {
+      import('@capacitor/app').then(({ App: CapApp }) => {
+        CapApp.addListener('backButton', () => {
+          const backdrop = document.querySelector('.modal-backdrop') as HTMLElement;
+          if (backdrop) {
+            backdrop.click(); // Close modal
+          } else {
+            CapApp.exitApp(); // Exit app
+          }
+        });
+      });
+    }
+  }, []);
+
   return (
     <SettingsProvider>
       <AppInner />

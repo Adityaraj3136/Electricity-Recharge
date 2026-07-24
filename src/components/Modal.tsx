@@ -24,7 +24,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="modal-backdrop fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
       
       <div className="fixed inset-x-0 bottom-0 z-50 transform transition-transform duration-300 ease-out sm:relative sm:max-w-md w-full">
         <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
