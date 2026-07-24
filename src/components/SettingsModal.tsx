@@ -7,7 +7,7 @@ import {
   Download, Upload, Moon, Sun, Info, Shield,
   ChevronRight, Lock, Bell, BellOff, AlertTriangle, CheckCircle2, Type
 } from 'lucide-react';
-import { useLang } from '../i18n/LanguageContext';
+import { useLang } from '../hooks/useLang';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 
