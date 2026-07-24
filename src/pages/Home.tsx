@@ -11,6 +11,7 @@ import {
   Plus, Settings, Zap, MoreVertical, Edit2, Trash2, Search,
   Bolt, Globe, Moon, Sun, Home as HomeIcon, BarChart2,
   HelpCircle, User, Shield, ArrowRight, BookOpen, CreditCard, Hexagon
+} from 'lucide-react';
 import { SettingsModal } from '../components/SettingsModal';
 import { BalanceModal } from '../components/BalanceModal';
 import { HelpModal } from '../components/HelpModal';
