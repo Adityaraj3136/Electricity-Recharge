@@ -93,7 +93,8 @@ export function Home() {
       if (!isActive && globalSyncPromise) {
         try {
           const { BackgroundTask } = await import('@capawesome/capacitor-background-task');
-          const taskId = await BackgroundTask.beforeExit(async () => {
+          let taskId: string;
+          taskId = await BackgroundTask.beforeExit(async () => {
             await globalSyncPromise;
             BackgroundTask.finish({ taskId });
           });
@@ -876,7 +877,7 @@ export function Home() {
                           )}
                           {sessionBalances[consumer.id] && (
                             <div className="mt-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                              Balance: <span className={sessionBalances[consumer.id].balance.includes('-') ? 'text-red-500' : 'text-green-500'}>{sessionBalances[consumer.id].balance}</span>
+                              Balance: <span className={sessionBalances[consumer.id].balance.includes('-') ? 'text-green-500' : 'text-red-500'}>{sessionBalances[consumer.id].balance}</span>
                               <span className="text-[10px] text-gray-400 font-normal ml-1">({sessionBalances[consumer.id].date})</span>
                             </div>
                           )}
@@ -1004,7 +1005,7 @@ export function Home() {
                         )}
                         {sessionBalances[consumer.id] && (
                           <div className="mt-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                            Balance: <span className={sessionBalances[consumer.id].balance.includes('-') ? 'text-red-500' : 'text-green-500'}>{sessionBalances[consumer.id].balance}</span>
+                            Balance: <span className={sessionBalances[consumer.id].balance.includes('-') ? 'text-green-500' : 'text-red-500'}>{sessionBalances[consumer.id].balance}</span>
                             <span className="text-[10px] text-gray-400 font-normal ml-1">({sessionBalances[consumer.id].date})</span>
                           </div>
                         )}
