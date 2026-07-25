@@ -299,22 +299,27 @@ export function Home() {
 
         // Inject automation script once — only on the SBPDCL portal page, not on payment gateways
         let scriptInjected = false;
-        browser.addEventListener('loadstop', () => {
+        browser.addEventListener('loadstop', (event: any) => {
+          const url = String(event?.url || '');
+          if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
           if (scriptInjected) return;
           scriptInjected = true;
-          browser.executeScript({ code: automationScript }, () => {
-            // Script is confirmed loaded — safe to start automation
-            browser.executeScript({ code: `
-              if (typeof window.startSbpdclAutomation === 'function') {
-                window.startSbpdclAutomation({
-                  caNumber: '${consumer.caNumber}',
-                  mobileNumber: '${consumer.mobileNumber || ''}',
-                  amount: '${finalAmount}',
-                  gateway: '${consumer.preferredGateway || ''}'
-                });
-              }
-            `});
-          });
+          
+          setTimeout(() => {
+            browser.executeScript({ code: automationScript });
+            setTimeout(() => {
+              browser.executeScript({ code: `
+                if (typeof window.startSbpdclAutomation === 'function') {
+                  window.startSbpdclAutomation({
+                    caNumber: '${consumer.caNumber}',
+                    mobileNumber: '${consumer.mobileNumber || ''}',
+                    amount: '${finalAmount}',
+                    gateway: '${consumer.preferredGateway || 'HDFC'}'
+                  });
+                }
+              `});
+            }, 1500);
+          }, 3000);
         });
       } else { window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank'); }
     });
