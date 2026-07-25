@@ -415,7 +415,7 @@ export const automationScript = `
 
       const cleanText = (value) => (value || '')
         .replace(/picture_as_pdf/gi, '')
-        .replace(/\s+/g, ' ')
+        .replace(/\\s+/g, ' ')
         .trim();
 
       const getTdValue = (labelMatches) => {
@@ -467,8 +467,8 @@ export const automationScript = `
           
           // CRITICAL: Ensure the scraped CA number matches the requested one!
           // This prevents InAppBrowser cache from returning the previous meter's data
-          const expectedCaStr = String(caNumber).replace(/\D/g, '');
-          const foundCaStr = String(caValue).replace(/\D/g, '');
+          const expectedCaStr = String(caNumber).replace(/\\D/g, '');
+          const foundCaStr = String(caValue).replace(/\\D/g, '');
           
           // If we found a CA number but it doesn't match the one we searched for,
           // it means the old cached data is still on screen. Keep waiting.
@@ -505,16 +505,16 @@ export const automationScript = `
 
       const details = {
         caNumber: getTdValue(['CA Number', 'Consumer Number']) || caNumber,
-        name: getTdValue(['Name', 'Consumer Name']) || getBodyValue([/Consumer Name\s*[:\-]?\s*([^\n]+)/i, /Name\s*[:\-]?\s*([^\n]+)/i]),
+        name: getTdValue(['Name', 'Consumer Name']) || getBodyValue([/Consumer Name\\s*[:\\-]?\\s*([^\\n]+)/i, /Name\\s*[:\\-]?\\s*([^\\n]+)/i]),
         division: getTdValue(['Division']),
         subDivision: getTdValue(['Sub Division']),
-        lastRechargeDate: getTdValue(['Last Recharge Date']) || getBodyValue([/Last Recharge Date\s*[:\-]?\s*([^\n]+)/i]) || 'N/A',
-        lastRechargeAmount: getTdValue(['Last Recharge Amount']) || getBodyValue([/Last Recharge Amount\s*[:\-]?\s*(₹?\s*-?[\d,]+(?:\.\d+)?)/i]) || 'N/A',
+        lastRechargeDate: getTdValue(['Last Recharge Date']) || getBodyValue([/Last Recharge Date\\s*[:\\-]?\\s*([^\\n]+)/i]) || 'N/A',
+        lastRechargeAmount: getTdValue(['Last Recharge Amount']) || getBodyValue([/Last Recharge Amount\\s*[:\\-]?\\s*(₹?\\s*-?[\\d,]+(?:\\.\\d+)?)/i]) || 'N/A',
         consumerType: getTdValue(['Consumer Type']),
-        currentStatus: getTdValue(['Current Status']) || getBodyValue([/Current Status\s*[:\-]?\s*([^\n]+)/i]) || 'N/A',
+        currentStatus: getTdValue(['Current Status']) || getBodyValue([/Current Status\\s*[:\\-]?\\s*([^\\n]+)/i]) || 'N/A',
         availableBalance:
           getTdValue(['Available Balance', 'Balance(Rs)', 'Available Balance(Rs)']) ||
-          getBodyValue([/Available Balance(?:\(Rs\))?\s*[:\-]?\s*(₹?\s*-?[\d,]+(?:\.\d+)?)/i, /Balance(?:\(Rs\))?\s*[:\-]?\s*(₹?\s*-?[\d,]+(?:\.\d+)?)/i]),
+          getBodyValue([/Available Balance(?:\\(Rs\\))?\\s*[:\\-]?\\s*(₹?\\s*-?[\\d,]+(?:\\.\\d+)?)/i, /Balance(?:\\(Rs\\))?\\s*[:\\-]?\\s*(₹?\\s*-?[\\d,]+(?:\\.\\d+)?)/i]),
         amispVendor: getTdValue(['AMISP Vendor'])
       };
 
