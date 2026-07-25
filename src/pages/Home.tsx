@@ -283,8 +283,23 @@ export function Home() {
         // Open UPI payment apps in system browser; keep IAB open for timer/acknowledgement page
         let lastUpiIntentUrl = '';
         let lastUpiIntentAt = 0;
+        const openUpiIntent = (url: string) => {
+          const cleanUrl = String(url || '').trim();
+          if (!cleanUrl) return;
+          const lowerUrl = cleanUrl.toLowerCase();
+          const isUpiIntent = lowerUrl.startsWith('upi://') || lowerUrl.startsWith('intent://') ||
+                              lowerUrl.startsWith('paytmmp://') || lowerUrl.startsWith('phonepe://') ||
+                              lowerUrl.startsWith('tez://') || lowerUrl.startsWith('gpay://');
+          if (!isUpiIntent) return;
+          const now = Date.now();
+          if (cleanUrl === lastUpiIntentUrl && now - lastUpiIntentAt < 1500) return;
+          lastUpiIntentUrl = cleanUrl;
+          lastUpiIntentAt = now;
+          win.cordova.InAppBrowser.open(cleanUrl, '_system');
+        };
+
         browser.addEventListener('loadstart', (event: any) => {
-          const url = event.url || '';
+          const url = String(event?.url || '');
           
           // Intercept floating close button click
           if (url === 'https://app.close.browser/') {
@@ -292,16 +307,13 @@ export function Home() {
             return;
           }
 
-          const isUpiIntent = url.startsWith('upi://') || url.startsWith('intent://') ||
-                              url.startsWith('paytmmp://') || url.startsWith('phonepe://') ||
-                              url.startsWith('tez://') || url.startsWith('gpay://');
-          if (isUpiIntent) {
-            const now = Date.now();
-            if (url === lastUpiIntentUrl && now - lastUpiIntentAt < 1500) return;
-            lastUpiIntentUrl = url;
-            lastUpiIntentAt = now;
-            win.cordova.InAppBrowser.open(url, '_system');
-          }
+          openUpiIntent(url);
+        });
+
+        browser.addEventListener('loaderror', (event: any) => {
+          // Some gateways trigger app intents via unsupported custom schemes,
+          // which can fail in WebView before loadstart; recover by opening externally.
+          openUpiIntent(String(event?.url || ''));
         });
 
         // Inject automation script once — only on the SBPDCL portal page, not on payment gateways
