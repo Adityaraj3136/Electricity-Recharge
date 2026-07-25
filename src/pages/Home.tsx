@@ -346,6 +346,7 @@ export function Home() {
   const fetchBalanceDetails = async (consumer: Consumer) => {
     const status = await Network.getStatus();
     if (!status.connected) { showToast(t.toast.offline, 'error'); return; }
+    const expectedCa = (consumer.caNumber || '').replace(/\D/g, '');
     import('@capacitor/core').then(({ Capacitor }) => {
       if (Capacitor.isNativePlatform()) {
         setIsBalanceOpen(true); setIsBalanceLoading(true); setBalanceDetails(null);
@@ -405,6 +406,8 @@ export function Home() {
                 if (done) return;
                 browser.executeScript({
                   code: `(function(){
+                    window.__balanceResult = null;
+                    window.__balanceError = null;
                     if(typeof window.fetchSbpdclBalance==='function'){
                       window.fetchSbpdclBalance('${consumer.caNumber}');
                     } else {
@@ -424,6 +427,8 @@ export function Home() {
                       try {
                         const data = JSON.parse(res?.[0] || '{}');
                         if (data.result) {
+                          const resultCa = String(data.result?.caNumber || '').replace(/\D/g, '');
+                          if (resultCa && expectedCa && resultCa !== expectedCa) return;
                           finish(true, data.result);
                           checkAndNotifyLowBalance(data.result, consumer.name);
                         }
@@ -457,6 +462,8 @@ export function Home() {
           let done = false;
           let pollInterval: any = null;
           let timeout: any = null;
+          let lastInjectedUrl = '';
+          const expectedCa = (consumer.caNumber || '').replace(/\D/g, '');
 
           const finish = (data?: BalanceDetails) => {
             if (done) return;
@@ -492,17 +499,25 @@ export function Home() {
             'hidden=yes'
           );
 
-          timeout = setTimeout(() => finish(), 20000);
+          timeout = setTimeout(() => finish(), 35000);
 
           browser.addEventListener('message', (event: any) => {
             try {
               const data = JSON.parse(event.data);
-              if (data.type === 'BALANCE_DETAILS') finish(data.details);
+              if (data.type === 'BALANCE_DETAILS') {
+                const resultCa = String(data.details?.caNumber || '').replace(/\D/g, '');
+                if (resultCa && expectedCa && resultCa !== expectedCa) return;
+                finish(data.details);
+              }
               else if (data.type === 'BALANCE_ERROR' || data.type === 'CLOSE_BROWSER') finish();
             } catch(e) {}
           });
 
-          browser.addEventListener('loadstop', () => {
+          browser.addEventListener('loadstop', (event: any) => {
+            const url = String(event?.url || '');
+            if (url === lastInjectedUrl) return;
+            if (url && !url.includes('sbpdcl.co.in') && !url.includes('cportal')) return;
+            lastInjectedUrl = url;
             setTimeout(() => {
               if (done) return;
               browser.executeScript({ code: automationScript });
@@ -510,6 +525,8 @@ export function Home() {
                 if (done) return;
                 browser.executeScript({
                   code: `(function(){
+                    window.__balanceResult = null;
+                    window.__balanceError = null;
                     if(typeof window.fetchSbpdclBalance==='function'){
                       window.fetchSbpdclBalance('${consumer.caNumber}');
                     } else {
@@ -526,7 +543,11 @@ export function Home() {
                       if (done) return;
                       try {
                         const data = JSON.parse(res?.[0] || '{}');
-                        if (data.result) finish(data.result);
+                        if (data.result) {
+                          const resultCa = String(data.result?.caNumber || '').replace(/\D/g, '');
+                          if (resultCa && expectedCa && resultCa !== expectedCa) return;
+                          finish(data.result);
+                        }
                         else if (data.error) finish();
                       } catch (e) {}
                     }

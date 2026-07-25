@@ -406,18 +406,72 @@ export const automationScript = `
   // ── BALANCE FETCH MAIN ────────────────────────────────────────────────────
   window.fetchSbpdclBalance = async function(caNumber) {
     try {
+      window.__balanceResult = null;
+      window.__balanceError = null;
+
       await fillCANumber(caNumber);
       await clickSearch();
 
-      // New approach: use MutationObserver + text scan instead of CSS selector
-      // The SBPDCL page renders data dynamically; we wait for 'CA Number' text to appear
+      const cleanText = (value) => (value || '')
+        .replace(/picture_as_pdf/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const getTdValue = (labelMatches) => {
+        const rowSelectors = Array.from(document.querySelectorAll('tr'));
+        for (const row of rowSelectors) {
+          const cells = Array.from(row.querySelectorAll('td, th'));
+          if (cells.length < 2) continue;
+          for (let i = 0; i < cells.length - 1; i++) {
+            const labelText = cleanText(cells[i].innerText || cells[i].textContent || '').toLowerCase();
+            if (labelMatches.some(m => labelText.includes(m.toLowerCase()))) {
+              const candidate = cleanText(cells[i + 1].innerText || cells[i + 1].textContent || '');
+              if (candidate && !labelMatches.some(m => candidate.toLowerCase().includes(m.toLowerCase()))) {
+                return candidate;
+              }
+            }
+          }
+        }
+
+        const allTds = Array.from(document.querySelectorAll('td'));
+        for (let i = 0; i < allTds.length; i++) {
+          const td = allTds[i];
+          const text = cleanText(td.innerText || td.textContent || '').toLowerCase();
+          if (labelMatches.some(m => text.includes(m.toLowerCase()))) {
+            const nextTd = allTds[i + 1];
+            if (nextTd) {
+              const val = cleanText(nextTd.innerText || nextTd.textContent || '');
+              if (val) return val;
+            }
+          }
+        }
+
+        return '';
+      };
+
+      const getBodyValue = (patterns) => {
+        const bodyText = document.body ? (document.body.innerText || '') : '';
+        for (const pattern of patterns) {
+          const m = bodyText.match(pattern);
+          if (m?.[1]) return cleanText(m[1]);
+        }
+        return '';
+      };
+
+      // Wait for actual populated result data (not just static form labels)
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('Timed out waiting for consumer data')), 35000);
-        
         function checkForData() {
-          // Scan ALL text nodes on the page for 'CA Number'
-          const bodyText = document.body ? document.body.innerText || '' : '';
-          if (bodyText.includes('CA Number') || bodyText.includes('Consumer Number') || bodyText.includes('Available Balance')) {
+          const caValue = getTdValue(['CA Number', 'Consumer Number']);
+          const nameValue = getTdValue(['Name', 'Consumer Name']);
+          const balanceValue = getTdValue(['Available Balance', 'Balance(Rs)', 'Available Balance(Rs)']);
+          const statusValue = getTdValue(['Current Status']);
+
+          const hasConsumerData = Boolean(
+            (caValue || nameValue) && (balanceValue || statusValue)
+          );
+
+          if (hasConsumerData) {
             clearTimeout(timeout);
             resolve();
             return true;
@@ -434,41 +488,26 @@ export const automationScript = `
         observer.observe(document.body, { childList: true, subtree: true, characterData: true });
       });
 
-      await wait(1000); // let Angular finish all rendering
-
-      // Scrape using text-based td scanning (works regardless of CSS class names)
-      const getTdValue = (labelMatches) => {
-        // Try all td elements, look for label in strong or td itself
-        const allTds = Array.from(document.querySelectorAll('td'));
-        for (let i = 0; i < allTds.length; i++) {
-          const td = allTds[i];
-          const text = (td.innerText || td.textContent || '').trim().toLowerCase();
-          if (labelMatches.some(m => text.includes(m.toLowerCase()))) {
-            // Value is in the next td sibling
-            const nextTd = allTds[i + 1];
-            if (nextTd) {
-              return (nextTd.innerText || nextTd.textContent || '')
-                .trim()
-                .replace(/picture_as_pdf/gi, '')
-                .trim();
-            }
-          }
-        }
-        return '';
-      };
+      await wait(800);
 
       const details = {
-        caNumber: getTdValue(['CA Number', 'Consumer Number']),
-        name: getTdValue(['Name', 'Consumer Name']),
+        caNumber: getTdValue(['CA Number', 'Consumer Number']) || caNumber,
+        name: getTdValue(['Name', 'Consumer Name']) || getBodyValue([/Consumer Name\s*[:\-]?\s*([^\n]+)/i, /Name\s*[:\-]?\s*([^\n]+)/i]),
         division: getTdValue(['Division']),
         subDivision: getTdValue(['Sub Division']),
-        lastRechargeDate: getTdValue(['Last Recharge Date']),
-        lastRechargeAmount: getTdValue(['Last Recharge Amount']),
+        lastRechargeDate: getTdValue(['Last Recharge Date']) || getBodyValue([/Last Recharge Date\s*[:\-]?\s*([^\n]+)/i]) || 'N/A',
+        lastRechargeAmount: getTdValue(['Last Recharge Amount']) || getBodyValue([/Last Recharge Amount\s*[:\-]?\s*(₹?\s*-?[\d,]+(?:\.\d+)?)/i]) || 'N/A',
         consumerType: getTdValue(['Consumer Type']),
-        currentStatus: getTdValue(['Current Status']),
-        availableBalance: getTdValue(['Available Balance', 'Balance(Rs)', 'Available Balance(Rs)']),
+        currentStatus: getTdValue(['Current Status']) || getBodyValue([/Current Status\s*[:\-]?\s*([^\n]+)/i]) || 'N/A',
+        availableBalance:
+          getTdValue(['Available Balance', 'Balance(Rs)', 'Available Balance(Rs)']) ||
+          getBodyValue([/Available Balance(?:\(Rs\))?\s*[:\-]?\s*(₹?\s*-?[\d,]+(?:\.\d+)?)/i, /Balance(?:\(Rs\))?\s*[:\-]?\s*(₹?\s*-?[\d,]+(?:\.\d+)?)/i]),
         amispVendor: getTdValue(['AMISP Vendor'])
       };
+
+      if (!details.availableBalance) {
+        throw new Error('Could not read available balance. Please try again.');
+      }
 
       window.__balanceResult = details;
 
