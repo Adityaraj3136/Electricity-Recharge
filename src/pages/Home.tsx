@@ -282,6 +282,8 @@ export function Home() {
           } catch (e) {}
         });
 
+        let lastUpiIntentUrl = '';
+        let lastUpiIntentAt = 0;
         browser.addEventListener('beforeload', (event: any, callback: any) => {
           const url = event.url || '';
           
@@ -295,7 +297,10 @@ export function Home() {
                               url.startsWith('paytmmp://') || url.startsWith('phonepe://') || 
                               url.startsWith('tez://') || url.startsWith('gpay://');
           if (isUpiIntent) {
-            browser.close();
+            const now = Date.now();
+            if (url === lastUpiIntentUrl && now - lastUpiIntentAt < 1500) return;
+            lastUpiIntentUrl = url;
+            lastUpiIntentAt = now;
             win.cordova.InAppBrowser.open(url, '_system');
           } else if (callback) {
             callback(url);
