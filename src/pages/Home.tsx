@@ -303,20 +303,25 @@ export function Home() {
           const url = String(event?.url || '');
           if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
           if (scriptInjected) return;
-          scriptInjected = true;
-          browser.executeScript({ code: automationScript }, () => {
-            // Script is confirmed loaded — safe to start automation
-            browser.executeScript({ code: `
-              if(typeof window.startSbpdclAutomation==='function') {
-                window.startSbpdclAutomation({
-                  caNumber: '${consumer.caNumber}',
-                  mobileNumber: '${consumer.mobileNumber || ''}',
-                  amount: '${finalAmount}',
-                  gateway: '${consumer.preferredGateway || ''}'
-                });
-              }
-            `});
-          });
+          
+          setTimeout(() => {
+            if (scriptInjected) return;
+            scriptInjected = true;
+            browser.executeScript({ code: automationScript }, () => {
+              setTimeout(() => {
+                browser.executeScript({ code: `
+                  if (typeof window.startSbpdclAutomation === 'function') {
+                    window.startSbpdclAutomation({
+                      caNumber: '${consumer.caNumber}',
+                      mobileNumber: '${consumer.mobileNumber || ''}',
+                      amount: '${finalAmount}',
+                      gateway: '${consumer.preferredGateway || ''}'
+                    });
+                  }
+                `});
+              }, 1500);
+            });
+          }, 3000);
         });
       } else { window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank'); }
     });
@@ -392,31 +397,34 @@ export function Home() {
         scriptInjected = true;
         browser.executeScript({ code: automationScript }, () => {
           if (done) return;
-          browser.executeScript({ code: `
-            window.__balanceResult = null;
-            window.__balanceError = null;
-            if (typeof window.fetchSbpdclBalance === 'function') {
-              window.fetchSbpdclBalance('${consumer.caNumber}');
-            } else {
-              window.__balanceError = 'Script not ready';
-            }
-          ` });
-          pollInterval = setInterval(() => {
+          setTimeout(() => {
             if (done) return;
-            browser.executeScript(
-              { code: `JSON.stringify({ r: window.__balanceResult, e: window.__balanceError })` },
-              (res: any) => {
-                if (done) return;
-                try {
-                  const d = JSON.parse(res?.[0] || '{}');
-                  if (d.r) cleanup(true, undefined, d.r);
-                  else if (d.e) cleanup(false, d.e);
-                } catch (_) {}
+            browser.executeScript({ code: `
+              window.__balanceResult = null;
+              window.__balanceError = null;
+              if (typeof window.fetchSbpdclBalance === 'function') {
+                window.fetchSbpdclBalance('${consumer.caNumber}');
+              } else {
+                window.__balanceError = 'Script not ready';
               }
-            );
-          }, 2000);
+            ` });
+            pollInterval = setInterval(() => {
+              if (done) return;
+              browser.executeScript(
+                { code: `JSON.stringify({ r: window.__balanceResult, e: window.__balanceError })` },
+                (res: any) => {
+                  if (done) return;
+                  try {
+                    const d = JSON.parse(res?.[0] || '{}');
+                    if (d.r) cleanup(true, undefined, d.r);
+                    else if (d.e) cleanup(false, d.e);
+                  } catch (_) {}
+                }
+              );
+            }, 2000);
+          }, 1500);
         });
-      }, 2000);
+      }, 3000);
     });
   };
 
@@ -483,31 +491,34 @@ export function Home() {
             scriptInjected = true;
             browser.executeScript({ code: automationScript }, () => {
               if (done) return;
-              browser.executeScript({ code: `
-                window.__balanceResult = null;
-                window.__balanceError = null;
-                if (typeof window.fetchSbpdclBalance === 'function') {
-                  window.fetchSbpdclBalance('${consumer.caNumber}');
-                } else {
-                  window.__balanceError = 'Script not ready';
-                }
-              ` });
-              pollInterval = setInterval(() => {
+              setTimeout(() => {
                 if (done) return;
-                browser.executeScript(
-                  { code: `JSON.stringify({ r: window.__balanceResult, e: window.__balanceError })` },
-                  (res: any) => {
-                    if (done) return;
-                    try {
-                      const d = JSON.parse(res?.[0] || '{}');
-                      if (d.r) finish(d.r);
-                      else if (d.e) finish();
-                    } catch (_) {}
+                browser.executeScript({ code: `
+                  window.__balanceResult = null;
+                  window.__balanceError = null;
+                  if (typeof window.fetchSbpdclBalance === 'function') {
+                    window.fetchSbpdclBalance('${consumer.caNumber}');
+                  } else {
+                    window.__balanceError = 'Script not ready';
                   }
-                );
-              }, 2000);
+                ` });
+                pollInterval = setInterval(() => {
+                  if (done) return;
+                  browser.executeScript(
+                    { code: `JSON.stringify({ r: window.__balanceResult, e: window.__balanceError })` },
+                    (res: any) => {
+                      if (done) return;
+                      try {
+                        const d = JSON.parse(res?.[0] || '{}');
+                        if (d.r) finish(d.r);
+                        else if (d.e) finish();
+                      } catch (_) {}
+                    }
+                  );
+                }, 2000);
+              }, 1500);
             });
-          }, 2000);
+          }, 3000);
         });
       } catch (_) { resolve(); }
     });
