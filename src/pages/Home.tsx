@@ -303,10 +303,9 @@ export function Home() {
           const url = String(event?.url || '');
           if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
           if (scriptInjected) return;
+          scriptInjected = true;
           
           setTimeout(() => {
-            if (scriptInjected) return;
-            scriptInjected = true;
             browser.executeScript({ code: automationScript }, () => {
               setTimeout(() => {
                 browser.executeScript({ code: `
@@ -363,7 +362,7 @@ export function Home() {
     let done = false;
     let scriptInjected = false;  // prevent duplicate injection on SPA route changes
     let pollInterval: any = null;
-    const timeout = setTimeout(() => cleanup(false, 'Timed out. Please try again.'), 30000);
+    const timeout = setTimeout(() => cleanup(false, 'Timed out. Please try again.'), 45000);
 
     function cleanup(success: boolean, errMsg?: string, details?: any) {
       if (done) return;
@@ -390,11 +389,11 @@ export function Home() {
       const url = String(event?.url || '');
       if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
       if (done || scriptInjected) return;  // only inject once
+      scriptInjected = true;
 
       // Wait for Angular to render, then inject script
       setTimeout(() => {
-        if (done || scriptInjected) return;
-        scriptInjected = true;
+        if (done) return;
         browser.executeScript({ code: automationScript }, () => {
           if (done) return;
           setTimeout(() => {
@@ -448,7 +447,7 @@ export function Home() {
         let done = false;
         let scriptInjected = false;  // prevent duplicate injection on SPA route changes
         let pollInterval: any = null;
-        const timeout = setTimeout(() => finish(), 30000);
+        const timeout = setTimeout(() => finish(), 45000);
 
         function finish(data?: any) {
           if (done) return;
@@ -485,10 +484,10 @@ export function Home() {
           const url = String(event?.url || '');
           if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
           if (done || scriptInjected) return;  // only inject once per browser session
+          scriptInjected = true;
 
           setTimeout(() => {
-            if (done || scriptInjected) return;
-            scriptInjected = true;
+            if (done) return;
             browser.executeScript({ code: automationScript }, () => {
               if (done) return;
               setTimeout(() => {
