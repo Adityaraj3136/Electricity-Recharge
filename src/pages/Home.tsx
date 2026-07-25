@@ -277,7 +277,7 @@ export function Home() {
           'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank',
           ['location=no','toolbar=yes','toolbarcolor=#2563eb','closebuttoncaption=✕ Close',
            'closebuttoncolor=#ffffff','hidenavigationbuttons=yes','hideurlbar=yes',
-           'zoom=no','clearcache=yes','clearsessioncache=yes','hardwareback=yes','beforeload=yes'].join(',')
+           'zoom=no','clearcache=yes','clearsessioncache=yes','hardwareback=yes'].join(',')
         );
         
         browser.addEventListener('message', (event: any) => {
@@ -291,7 +291,7 @@ export function Home() {
 
         let lastUpiIntentUrl = '';
         let lastUpiIntentAt = 0;
-        browser.addEventListener('beforeload', (event: any, callback: any) => {
+        browser.addEventListener('loadstart', (event: any) => {
           const url = event.url || '';
           
           // Intercept app://home URL from the FAB button
@@ -309,8 +309,6 @@ export function Home() {
             lastUpiIntentUrl = url;
             lastUpiIntentAt = now;
             win.cordova.InAppBrowser.open(url, '_system');
-          } else if (callback) {
-            callback(url);
           }
         });
 
