@@ -463,6 +463,15 @@ export const automationScript = `
         const timeout = setTimeout(() => reject(new Error('Timed out waiting for consumer data')), 35000);
         function checkForData() {
           const caValue = getTdValue(['CA Number', 'Consumer Number']);
+          
+          // CRITICAL: Ensure the scraped CA number matches the requested one!
+          // This prevents InAppBrowser cache from returning the previous meter's data
+          const expectedCaStr = String(caNumber).replace(/\D/g, '');
+          const foundCaStr = String(caValue).replace(/\D/g, '');
+          if (foundCaStr && expectedCaStr && foundCaStr !== expectedCaStr) {
+            return false; // Wrong consumer data on screen, keep waiting!
+          }
+
           const nameValue = getTdValue(['Name', 'Consumer Name']);
           const balanceValue = getTdValue(['Available Balance', 'Balance(Rs)', 'Available Balance(Rs)']);
           const statusValue = getTdValue(['Current Status']);

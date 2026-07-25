@@ -496,7 +496,7 @@ export function Home() {
           const browser = win.cordova.InAppBrowser.open(
             'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
             '_blank',
-            'hidden=yes'
+            'hidden=yes,clearcache=yes,clearsessioncache=yes'
           );
 
           timeout = setTimeout(() => finish(), 35000);
