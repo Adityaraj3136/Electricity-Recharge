@@ -276,32 +276,17 @@ export function Home() {
         const browser = win.cordova.InAppBrowser.open(
           'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank',
           ['location=no','toolbar=yes','toolbarcolor=#2563eb','closebuttoncaption=✕ Close',
-           'closebuttoncolor=#ffffff','hidenavigationbuttons=yes','hideurlbar=yes',
+           'closebuttoncolor=#ffffff','hideurlbar=yes',
            'zoom=no','clearcache=yes','clearsessioncache=yes','hardwareback=yes'].join(',')
         );
-        
-        browser.addEventListener('message', (event: any) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'CLOSE_BROWSER') {
-              browser.close();
-            }
-          } catch (e) {}
-        });
 
+        // Open UPI payment apps in system browser; keep IAB open for timer/acknowledgement page
         let lastUpiIntentUrl = '';
         let lastUpiIntentAt = 0;
         browser.addEventListener('loadstart', (event: any) => {
           const url = event.url || '';
-          
-          // Intercept app://home URL from the FAB button
-          if (url.startsWith('app://home') || url.startsWith('app%3A//home')) {
-            browser.close();
-            return;
-          }
-
-          const isUpiIntent = url.startsWith('upi://') || url.startsWith('intent://') || 
-                              url.startsWith('paytmmp://') || url.startsWith('phonepe://') || 
+          const isUpiIntent = url.startsWith('upi://') || url.startsWith('intent://') ||
+                              url.startsWith('paytmmp://') || url.startsWith('phonepe://') ||
                               url.startsWith('tez://') || url.startsWith('gpay://');
           if (isUpiIntent) {
             const now = Date.now();
@@ -312,47 +297,11 @@ export function Home() {
           }
         });
 
+        // Inject automation script once — only on the SBPDCL portal page, not on payment gateways
         let scriptInjected = false;
-        browser.addEventListener('loadstop', () => {
-          // Inject persistent floating Home FAB on every page load
-          browser.executeScript({ code: `
-            (function() {
-              if (document.getElementById('br-home-fab')) return;
-              const fab = document.createElement('div');
-              fab.id = 'br-home-fab';
-              fab.innerHTML = '\\u2190 Home';
-              fab.style.cssText = [
-                'position:fixed',
-                'bottom:24px',
-                'right:20px',
-                'background:#2563eb',
-                'color:white',
-                'padding:14px 22px',
-                'border-radius:32px',
-                'font-family:sans-serif',
-                'font-weight:bold',
-                'font-size:15px',
-                'box-shadow:0 6px 20px rgba(37,99,235,0.5)',
-                'z-index:2147483647',
-                'cursor:pointer',
-                'border:none',
-                'outline:none',
-                '-webkit-tap-highlight-color:transparent',
-                'user-select:none',
-                'touch-action:manipulation'
-              ].join(';');
-              fab.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                window.location.href = 'app://home';
-              }, { passive: false });
-              fab.addEventListener('click', function(e) {
-                e.preventDefault();
-                window.location.href = 'app://home';
-              });
-              document.body.appendChild(fab);
-            })();
-          `});
-
+        browser.addEventListener('loadstop', (event: any) => {
+          const url = String(event?.url || '');
+          if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
           if (scriptInjected) return;
           scriptInjected = true;
           browser.executeScript({ code: automationScript }, () => {
