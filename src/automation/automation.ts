@@ -468,9 +468,10 @@ export const automationScript = `
           // This prevents InAppBrowser cache from returning the previous meter's data
           const expectedCaStr = String(caNumber).replace(/\D/g, '');
           const foundCaStr = String(caValue).replace(/\D/g, '');
+          
+          // If we found a CA number but it doesn't match the one we searched for,
+          // it means the old cached data is still on screen. Keep waiting.
           if (foundCaStr && expectedCaStr && foundCaStr !== expectedCaStr) {
-            // Wrong consumer data on screen — keep waiting via requestAnimationFrame
-            requestAnimationFrame(checkForData);
             return false;
           }
 
