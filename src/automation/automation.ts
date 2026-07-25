@@ -469,7 +469,9 @@ export const automationScript = `
           const expectedCaStr = String(caNumber).replace(/\D/g, '');
           const foundCaStr = String(caValue).replace(/\D/g, '');
           if (foundCaStr && expectedCaStr && foundCaStr !== expectedCaStr) {
-            return false; // Wrong consumer data on screen, keep waiting!
+            // Wrong consumer data on screen — keep waiting via requestAnimationFrame
+            requestAnimationFrame(checkForData);
+            return false;
           }
 
           const nameValue = getTdValue(['Name', 'Consumer Name']);

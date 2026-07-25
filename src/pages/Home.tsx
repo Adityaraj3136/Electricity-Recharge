@@ -407,6 +407,7 @@ export function Home() {
     );
 
     let done = false;
+    let scriptInjected = false;  // prevent duplicate injection on SPA route changes
     let pollInterval: any = null;
     const timeout = setTimeout(() => cleanup(false, 'Timed out. Please try again.'), 30000);
 
@@ -434,14 +435,14 @@ export function Home() {
     browser.addEventListener('loadstop', (event: any) => {
       const url = String(event?.url || '');
       if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
-      if (done) return;
+      if (done || scriptInjected) return;  // only inject once
 
       // Wait for Angular to render, then inject script
       setTimeout(() => {
-        if (done) return;
+        if (done || scriptInjected) return;
+        scriptInjected = true;
         browser.executeScript({ code: automationScript }, () => {
           if (done) return;
-          // Call the balance fetcher
           browser.executeScript({ code: `
             window.__balanceResult = null;
             window.__balanceError = null;
@@ -451,7 +452,6 @@ export function Home() {
               window.__balanceError = 'Script not ready';
             }
           ` });
-          // Poll for result every 2 seconds
           pollInterval = setInterval(() => {
             if (done) return;
             browser.executeScript(
@@ -484,10 +484,12 @@ export function Home() {
         const browser = win.cordova.InAppBrowser.open(
           'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
           '_blank',
+          // clearsessioncache=yes is CRITICAL for multi-meter - prevents session bleed between meters
           'hidden=yes,clearcache=yes,clearsessioncache=yes'
         );
 
         let done = false;
+        let scriptInjected = false;  // prevent duplicate injection on SPA route changes
         let pollInterval: any = null;
         const timeout = setTimeout(() => finish(), 30000);
 
@@ -498,11 +500,7 @@ export function Home() {
           if (pollInterval) clearInterval(pollInterval);
           try { browser.close(); } catch (_) {}
           if (data) {
-            updateConsumer(consumer.id, {
-              lastFetchedBalance: data.availableBalance,
-              lastFetchedDate: new Date().toLocaleDateString('en-GB'),
-              currentStatus: data.currentStatus
-            });
+            // Update UI session state first (fast, no storage write)
             setSessionBalances(prev => ({
               ...prev,
               [consumer.id]: {
@@ -511,6 +509,14 @@ export function Home() {
                 status: data.currentStatus
               }
             }));
+            // Write to storage separately to avoid triggering consumer list re-render mid-sync
+            setTimeout(() => {
+              updateConsumer(consumer.id, {
+                lastFetchedBalance: data.availableBalance,
+                lastFetchedDate: new Date().toLocaleDateString('en-GB'),
+                currentStatus: data.currentStatus
+              });
+            }, 100);
             checkAndNotifyLowBalance(data, consumer.name);
           }
           resolve();
@@ -521,10 +527,11 @@ export function Home() {
         browser.addEventListener('loadstop', (event: any) => {
           const url = String(event?.url || '');
           if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
-          if (done) return;
+          if (done || scriptInjected) return;  // only inject once per browser session
 
           setTimeout(() => {
-            if (done) return;
+            if (done || scriptInjected) return;
+            scriptInjected = true;
             browser.executeScript({ code: automationScript }, () => {
               if (done) return;
               browser.executeScript({ code: `
