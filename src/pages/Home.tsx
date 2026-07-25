@@ -21,6 +21,7 @@ import { automationScript } from '../automation/automation';
 import { Network } from '@capacitor/network';
 import { sanitizeText, sanitizeNumber } from '../utils/sanitize';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { App } from '@capacitor/app';
 
 // ─── Avatar colour palette ─────────────────────────────────────────────────
 const AVATAR_GRADIENTS = [
@@ -41,7 +42,7 @@ const AppLogo = ({ className = "" }: { className?: string }) => (
   </svg>
 );
 
-
+let globalSyncPromise: Promise<void> | null = null;
 
 // ─── Component ─────────────────────────────────────────────────────────────
 export function Home() {
@@ -85,6 +86,26 @@ export function Home() {
       await new Promise(r => setTimeout(r, 600));
     }, [refreshConsumers]),
   });
+
+  // Background Task Listener to keep fetching alive when minimized
+  useEffect(() => {
+    const listener = App.addListener('appStateChange', async ({ isActive }) => {
+      if (!isActive && globalSyncPromise) {
+        try {
+          const { BackgroundTask } = await import('@capawesome/capacitor-background-task');
+          const taskId = await BackgroundTask.beforeExit(async () => {
+            await globalSyncPromise;
+            BackgroundTask.finish({ taskId });
+          });
+        } catch (e) {
+          // Plugin not available or web
+        }
+      }
+    });
+    return () => {
+      listener.then(l => l.remove());
+    };
+  }, []);
 
   // Clear action menu when switching tabs
   useEffect(() => {
@@ -566,9 +587,16 @@ export function Home() {
     if (consumers.length === 0 || isSyncing) return;
     setIsSyncing(true);
     showToast('Fetching balances in background...', 'info');
-    for (const consumer of consumers) {
-      await fetchBalanceSilently(consumer);
-    }
+    
+    globalSyncPromise = (async () => {
+      for (const consumer of consumers) {
+        await fetchBalanceSilently(consumer);
+      }
+    })();
+    
+    await globalSyncPromise;
+    globalSyncPromise = null;
+    
     setIsSyncing(false);
     showToast('Fetch complete');
   };
