@@ -14,22 +14,13 @@ interface BalanceModalProps {
   onRecharge?: (amount: string) => void;
 }
 
-export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view', defaultAmount = '', onRecharge }: BalanceModalProps) {
-  const [payAmount, setPayAmount] = useState(defaultAmount);
+export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view', defaultAmount = '100', onRecharge }: BalanceModalProps) {
+  const [payAmount, setPayAmount] = useState(defaultAmount || '100');
 
   // Sync default amount when details load or defaultAmount changes
   useEffect(() => {
     if (isOpen) {
-      if (defaultAmount) {
-        setPayAmount(defaultAmount);
-      } else if (details?.availableBalance) {
-        // Extract numbers from "₹ 1,234.00"
-        const amt = details.availableBalance.replace(/[^0-9.-]+/g, '');
-        // If it's negative or zero, don't prefill with it
-        if (parseFloat(amt) > 0) {
-          setPayAmount(Math.round(parseFloat(amt)).toString());
-        }
-      }
+      setPayAmount(defaultAmount || '100');
     } else {
       setPayAmount('');
     }
@@ -137,7 +128,7 @@ export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view
               <Button 
                 className="flex-[2]" 
                 onClick={() => onRecharge?.(payAmount)} 
-                disabled={!payAmount || parseInt(payAmount) <= 0}
+                disabled={!payAmount || parseInt(payAmount) < 100}
               >
                 Proceed to Pay
               </Button>
@@ -153,4 +144,3 @@ export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view
     </Modal>
   );
 }
-
