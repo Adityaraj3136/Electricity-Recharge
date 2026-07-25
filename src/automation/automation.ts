@@ -278,7 +278,8 @@ export const automationScript = `
       const allImgs = Array.from(document.querySelectorAll('mat-radio-button img'));
       const targetImg = allImgs.find(img => {
         const txt = (img.alt || img.src || '').toLowerCase();
-        const parentTxt = (img.closest('mat-radio-button')?.textContent || '').toLowerCase();
+        const parentBtn = img.closest('mat-radio-button');
+        const parentTxt = (parentBtn ? parentBtn.textContent || '' : '').toLowerCase();
         return txt.includes(imgAltMatch) || parentTxt.includes(imgAltMatch);
       });
 
@@ -453,7 +454,7 @@ export const automationScript = `
         const bodyText = document.body ? (document.body.innerText || '') : '';
         for (const pattern of patterns) {
           const m = bodyText.match(pattern);
-          if (m?.[1]) return cleanText(m[1]);
+          if (m && m[1]) return cleanText(m[1]);
         }
         return '';
       };
