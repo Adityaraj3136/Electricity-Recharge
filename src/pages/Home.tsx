@@ -344,8 +344,19 @@ export function Home() {
 
           if (scriptInjected) return;
           scriptInjected = true;
-          browser.executeScript({ code: automationScript });
-          setTimeout(() => browser.executeScript({ code: `setTimeout(()=>{ if(typeof window.startSbpdclAutomation==='function') window.startSbpdclAutomation({caNumber: '${consumer.caNumber}', mobileNumber: '${consumer.mobileNumber || ''}', amount: '${finalAmount}', gateway: '${consumer.preferredGateway || ''}'}); },1500);` }), 500);
+          browser.executeScript({ code: automationScript }, () => {
+            // Script is confirmed loaded — safe to start automation
+            browser.executeScript({ code: `
+              if(typeof window.startSbpdclAutomation==='function') {
+                window.startSbpdclAutomation({
+                  caNumber: '${consumer.caNumber}',
+                  mobileNumber: '${consumer.mobileNumber || ''}',
+                  amount: '${finalAmount}',
+                  gateway: '${consumer.preferredGateway || ''}'
+                });
+              }
+            `});
+          });
         });
       } else { window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank'); }
     });
@@ -419,11 +430,11 @@ export function Home() {
             if (!url.includes('sbpdcl.co.in') && !url.includes('cportal')) return;
             lastInjectedUrl = url;
 
-            // Wait 3s for Angular to fully render the search form before injecting
+            // Wait 1.5s for Angular to fully render the form, then inject
             setTimeout(() => {
               if (done) return;
-              browser.executeScript({ code: automationScript });
-              setTimeout(() => {
+              browser.executeScript({ code: automationScript }, () => {
+                // Script is now injected — safe to call immediately
                 if (done) return;
                 browser.executeScript({
                   code: `(function(){
@@ -458,8 +469,8 @@ export function Home() {
                     }
                   );
                 }, 2000);
-              }, 1500);
-            }, 3000);
+              });
+            }, 1500);
           });
 
           browser.addEventListener('exit', () => {
@@ -541,8 +552,8 @@ export function Home() {
             lastInjectedUrl = url;
             setTimeout(() => {
               if (done) return;
-              browser.executeScript({ code: automationScript });
-              setTimeout(() => {
+              browser.executeScript({ code: automationScript }, () => {
+                // Script confirmed injected — call immediately
                 if (done) return;
                 browser.executeScript({
                   code: `(function(){
@@ -556,6 +567,7 @@ export function Home() {
                   })();`
                 });
 
+                if (pollInterval) clearInterval(pollInterval);
                 pollInterval = setInterval(() => {
                   if (done) return;
                   browser.executeScript(
@@ -574,8 +586,8 @@ export function Home() {
                     }
                   );
                 }, 2000);
-              }, 1500);
-            }, 3000);
+              });
+            }, 1500);
           });
           browser.addEventListener('exit', () => finish());
         });

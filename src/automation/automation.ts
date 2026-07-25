@@ -520,22 +520,21 @@ export const automationScript = `
 
       window.__balanceResult = details;
 
+      // Cross-platform message dispatch: works on both Android (Cordova postMessage) and iOS (webkit)
+      const msg = JSON.stringify({ type: 'BALANCE_DETAILS', details });
       if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cordova_iab) {
-        window.webkit.messageHandlers.cordova_iab.postMessage(JSON.stringify({
-          type: 'BALANCE_DETAILS',
-          details
-        }));
+        window.webkit.messageHandlers.cordova_iab.postMessage(msg);
       }
+      window.postMessage(msg, '*');
       return details;
 
     } catch (error) {
       window.__balanceError = error.message;
+      const errMsg = JSON.stringify({ type: 'BALANCE_ERROR', error: error.message });
       if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.cordova_iab) {
-        window.webkit.messageHandlers.cordova_iab.postMessage(JSON.stringify({
-          type: 'BALANCE_ERROR',
-          error: error.message
-        }));
+        window.webkit.messageHandlers.cordova_iab.postMessage(errMsg);
       }
+      window.postMessage(errMsg, '*');
       throw error;
     }
   };
