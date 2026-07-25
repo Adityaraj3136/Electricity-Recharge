@@ -299,28 +299,22 @@ export function Home() {
 
         // Inject automation script once — only on the SBPDCL portal page, not on payment gateways
         let scriptInjected = false;
-        browser.addEventListener('loadstop', (event: any) => {
-          const url = String(event?.url || '');
-          if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
+        browser.addEventListener('loadstop', () => {
           if (scriptInjected) return;
           scriptInjected = true;
-          
-          setTimeout(() => {
-            browser.executeScript({ code: automationScript }, () => {
-              setTimeout(() => {
-                browser.executeScript({ code: `
-                  if (typeof window.startSbpdclAutomation === 'function') {
-                    window.startSbpdclAutomation({
-                      caNumber: '${consumer.caNumber}',
-                      mobileNumber: '${consumer.mobileNumber || ''}',
-                      amount: '${finalAmount}',
-                      gateway: '${consumer.preferredGateway || ''}'
-                    });
-                  }
-                `});
-              }, 1500);
-            });
-          }, 3000);
+          browser.executeScript({ code: automationScript }, () => {
+            // Script is confirmed loaded — safe to start automation
+            browser.executeScript({ code: `
+              if (typeof window.startSbpdclAutomation === 'function') {
+                window.startSbpdclAutomation({
+                  caNumber: '${consumer.caNumber}',
+                  mobileNumber: '${consumer.mobileNumber || ''}',
+                  amount: '${finalAmount}',
+                  gateway: '${consumer.preferredGateway || ''}'
+                });
+              }
+            `});
+          });
         });
       } else { window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank'); }
     });
@@ -394,20 +388,19 @@ export function Home() {
       // Wait for Angular to render, then inject script
       setTimeout(() => {
         if (done) return;
-        browser.executeScript({ code: automationScript }, () => {
+        browser.executeScript({ code: automationScript });
+        setTimeout(() => {
           if (done) return;
-          setTimeout(() => {
-            if (done) return;
-            browser.executeScript({ code: `
-              window.__balanceResult = null;
-              window.__balanceError = null;
-              if (typeof window.fetchSbpdclBalance === 'function') {
-                window.fetchSbpdclBalance('${consumer.caNumber}');
-              } else {
-                window.__balanceError = 'Script not ready';
-              }
-            ` });
-            pollInterval = setInterval(() => {
+          browser.executeScript({ code: `
+            window.__balanceResult = null;
+            window.__balanceError = null;
+            if (typeof window.fetchSbpdclBalance === 'function') {
+              window.fetchSbpdclBalance('${consumer.caNumber}');
+            } else {
+              window.__balanceError = 'Script not ready';
+            }
+          ` });
+          pollInterval = setInterval(() => {
               if (done) return;
               browser.executeScript(
                 { code: `JSON.stringify({ r: window.__balanceResult, e: window.__balanceError })` },
@@ -421,8 +414,7 @@ export function Home() {
                 }
               );
             }, 2000);
-          }, 1500);
-        });
+        }, 1500);
       }, 3000);
     });
   };
@@ -488,35 +480,33 @@ export function Home() {
 
           setTimeout(() => {
             if (done) return;
-            browser.executeScript({ code: automationScript }, () => {
+            browser.executeScript({ code: automationScript });
+            setTimeout(() => {
               if (done) return;
-              setTimeout(() => {
+              browser.executeScript({ code: `
+                window.__balanceResult = null;
+                window.__balanceError = null;
+                if (typeof window.fetchSbpdclBalance === 'function') {
+                  window.fetchSbpdclBalance('${consumer.caNumber}');
+                } else {
+                  window.__balanceError = 'Script not ready';
+                }
+              ` });
+              pollInterval = setInterval(() => {
                 if (done) return;
-                browser.executeScript({ code: `
-                  window.__balanceResult = null;
-                  window.__balanceError = null;
-                  if (typeof window.fetchSbpdclBalance === 'function') {
-                    window.fetchSbpdclBalance('${consumer.caNumber}');
-                  } else {
-                    window.__balanceError = 'Script not ready';
+                browser.executeScript(
+                  { code: `JSON.stringify({ r: window.__balanceResult, e: window.__balanceError })` },
+                  (res: any) => {
+                    if (done) return;
+                    try {
+                      const d = JSON.parse(res?.[0] || '{}');
+                      if (d.r) finish(d.r);
+                      else if (d.e) finish();
+                    } catch (_) {}
                   }
-                ` });
-                pollInterval = setInterval(() => {
-                  if (done) return;
-                  browser.executeScript(
-                    { code: `JSON.stringify({ r: window.__balanceResult, e: window.__balanceError })` },
-                    (res: any) => {
-                      if (done) return;
-                      try {
-                        const d = JSON.parse(res?.[0] || '{}');
-                        if (d.r) finish(d.r);
-                        else if (d.e) finish();
-                      } catch (_) {}
-                    }
-                  );
-                }, 2000);
-              }, 1500);
-            });
+                );
+              }, 2000);
+            }, 1500);
           }, 3000);
         });
       } catch (_) { resolve(); }
