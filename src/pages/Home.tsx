@@ -285,6 +285,13 @@ export function Home() {
         let lastUpiIntentAt = 0;
         browser.addEventListener('loadstart', (event: any) => {
           const url = event.url || '';
+          
+          // Intercept floating close button click
+          if (url === 'https://app.close.browser/') {
+            browser.close();
+            return;
+          }
+
           const isUpiIntent = url.startsWith('upi://') || url.startsWith('intent://') ||
                               url.startsWith('paytmmp://') || url.startsWith('phonepe://') ||
                               url.startsWith('tez://') || url.startsWith('gpay://');
@@ -301,6 +308,19 @@ export function Home() {
         let scriptInjected = false;
         browser.addEventListener('loadstop', (event: any) => {
           const url = String(event?.url || '');
+          
+          // Inject floating close button on ALL pages (including Juspay) to prevent getting stuck
+          browser.executeScript({ code: `
+            if (!document.getElementById('bijli-float-close')) {
+              var btn = document.createElement('div');
+              btn.id = 'bijli-float-close';
+              btn.innerHTML = '✕ Home';
+              btn.style = 'position:fixed; bottom:24px; right:24px; background:#0f172a; border:2px solid #3b82f6; color:white; padding:12px 24px; border-radius:30px; z-index:2147483647; font-weight:bold; box-shadow:0 8px 16px rgba(0,0,0,0.5); font-family:sans-serif; font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-transform:uppercase; letter-spacing:0.5px; opacity:0.95;';
+              btn.onclick = function() { window.location.href = 'https://app.close.browser/'; };
+              document.body.appendChild(btn);
+            }
+          `});
+
           if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
           if (scriptInjected) return;
           scriptInjected = true;
