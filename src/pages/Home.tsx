@@ -43,6 +43,7 @@ const AppLogo = ({ className = "" }: { className?: string }) => (
 );
 
 let globalSyncPromise: Promise<void> | null = null;
+const MIN_RECHARGE_AMOUNT = '100';
 
 // ─── Component ─────────────────────────────────────────────────────────────
 export function Home() {
@@ -57,7 +58,7 @@ export function Home() {
   const [name, setName] = useState('');
   const [caNumber, setCaNumber] = useState('');
   const [mobile, setMobile] = useState('');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(MIN_RECHARGE_AMOUNT);
   const [gateway, setGateway] = useState('HDFC');
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -226,7 +227,7 @@ export function Home() {
 
   const resetForm = () => {
     setName(''); setCaNumber(''); setMobile('');
-    setAmount(''); setGateway('HDFC'); setEditingConsumer(null);
+    setAmount(MIN_RECHARGE_AMOUNT); setGateway('HDFC'); setEditingConsumer(null);
     setFormErrors({});
   };
 
@@ -240,7 +241,13 @@ export function Home() {
       return;
     }
     setFormErrors({});
-    const data = { name: sanitizeText(name), caNumber: sanitizeNumber(caNumber), mobileNumber: sanitizeNumber(mobile), preferredAmount: sanitizeNumber(amount), preferredGateway: gateway as any };
+    const data = {
+      name: sanitizeText(name),
+      caNumber: sanitizeNumber(caNumber),
+      mobileNumber: sanitizeNumber(mobile),
+      preferredAmount: sanitizeNumber(amount) || MIN_RECHARGE_AMOUNT,
+      preferredGateway: gateway as any
+    };
     if (editingConsumer) { updateConsumer(editingConsumer.id, data); } else { addConsumer(data); }
     setIsAddOpen(false);
     resetForm();
@@ -397,13 +404,15 @@ export function Home() {
           );
 
           let pollInterval: any;
+          let timeout: any;
           let done = false;
 
           const finish = (success: boolean, details?: any, errMsg?: string) => {
             if (done) return;
             done = true;
             if (pollInterval) clearInterval(pollInterval);
-            browser.close();
+            if (timeout) clearTimeout(timeout);
+            try { browser.close(); } catch (_) {}
             if (success) {
               setBalanceDetails(details);
               setIsBalanceLoading(false);
@@ -413,6 +422,10 @@ export function Home() {
               setIsBalanceLoading(false);
             }
           };
+
+          timeout = setTimeout(() => {
+            finish(false, null, 'Balance fetch timed out. Please try again.');
+          }, 35000);
 
           // Listen for postMessage from automation script
           browser.addEventListener('message', (event: any) => {
@@ -481,9 +494,10 @@ export function Home() {
 
           browser.addEventListener('exit', () => {
             if (pollInterval) clearInterval(pollInterval);
+            if (timeout) clearTimeout(timeout);
             if (!done) { done = true; setIsBalanceLoading(false); setIsBalanceOpen(false); }
           });
-      } else { showToast(t.toast.browserError, 'error'); setIsBalanceOpen(false); }
+      } else { showToast(t.toast.browserError, 'error'); setIsBalanceOpen(false); setIsBalanceLoading(false); }
       } else { showToast(t.toast.balanceOnly, 'error'); }
     });
   };
@@ -904,7 +918,7 @@ export function Home() {
                                 setName(consumer.name);
                                 setCaNumber(consumer.caNumber);
                                 setMobile(consumer.mobileNumber || '');
-                                setAmount(consumer.preferredAmount || '');
+                                setAmount(consumer.preferredAmount || MIN_RECHARGE_AMOUNT);
                                 setGateway(consumer.preferredGateway || 'HDFC');
                                 setIsAddOpen(true);
                                 setActionMenuId(null);
@@ -1033,7 +1047,7 @@ export function Home() {
                               setName(consumer.name);
                               setCaNumber(consumer.caNumber);
                               setMobile(consumer.mobileNumber || '');
-                              setAmount(consumer.preferredAmount || '');
+                              setAmount(consumer.preferredAmount || MIN_RECHARGE_AMOUNT);
                               setGateway(consumer.preferredGateway || 'HDFC');
                               setIsAddOpen(true); 
                               setActionMenuId(null); 
@@ -1331,7 +1345,7 @@ export function Home() {
         details={balanceDetails}
         isLoading={isBalanceLoading}
         mode={balanceModalMode}
-        defaultAmount={activeConsumer?.preferredAmount || ''}
+        defaultAmount={activeConsumer?.preferredAmount || MIN_RECHARGE_AMOUNT}
         onRecharge={(amount) => {
           setIsBalanceOpen(false);
           setBalanceDetails(null);
