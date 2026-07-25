@@ -1,1 +1,0 @@
-import{i as e}from"./index-BDLym3R9.js";var t=class extends e{beforeExit(e){throw this.unimplemented(`Not implemented on web.`)}finish(e){throw this.unimplemented(`Not implemented on web.`)}};export{t as BackgroundTaskWeb};
