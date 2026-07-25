@@ -389,229 +389,174 @@ export function Home() {
   const fetchBalanceDetails = async (consumer: Consumer) => {
     const status = await Network.getStatus();
     if (!status.connected) { showToast(t.toast.offline, 'error'); return; }
-    const expectedCa = (consumer.caNumber || '').replace(/\D/g, '');
-    import('@capacitor/core').then(({ Capacitor }) => {
-      if (Capacitor.isNativePlatform()) {
-        setIsBalanceOpen(true); setIsBalanceLoading(true); setBalanceDetails(null);
-        const win = window as any;
-        if (win.cordova?.InAppBrowser) {
-          const browser = win.cordova.InAppBrowser.open(
-            'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
-            '_blank',
-            'hidden=yes,location=no,clearcache=yes,clearsessioncache=yes'
-          );
 
-          let pollInterval: any;
-          let timeout: any;
-          let done = false;
+    const { Capacitor } = await import('@capacitor/core');
+    if (!Capacitor.isNativePlatform()) { showToast(t.toast.balanceOnly, 'error'); return; }
 
-          const finish = (success: boolean, details?: any, errMsg?: string) => {
-            if (done) return;
-            done = true;
-            if (pollInterval) clearInterval(pollInterval);
-            if (timeout) clearTimeout(timeout);
-            try { browser.close(); } catch (_) {}
-            if (success) {
-              setBalanceDetails(details);
-              setIsBalanceLoading(false);
+    const win = window as any;
+    if (!win.cordova?.InAppBrowser) { showToast(t.toast.browserError, 'error'); return; }
+
+    setIsBalanceOpen(true);
+    setIsBalanceLoading(true);
+    setBalanceDetails(null);
+
+    const browser = win.cordova.InAppBrowser.open(
+      'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
+      '_blank',
+      'hidden=yes,location=no,clearcache=yes,clearsessioncache=yes'
+    );
+
+    let done = false;
+    let pollInterval: any = null;
+    const timeout = setTimeout(() => cleanup(false, 'Timed out. Please try again.'), 30000);
+
+    function cleanup(success: boolean, errMsg?: string, details?: any) {
+      if (done) return;
+      done = true;
+      clearTimeout(timeout);
+      if (pollInterval) clearInterval(pollInterval);
+      try { browser.close(); } catch (_) {}
+      if (success && details) {
+        setBalanceDetails(details);
+        setIsBalanceLoading(false);
+        checkAndNotifyLowBalance(details, consumer.name);
+      } else {
+        setIsBalanceLoading(false);
+        setIsBalanceOpen(false);
+        if (errMsg) showToast('Error: ' + errMsg, 'error');
+      }
+    }
+
+    browser.addEventListener('exit', () => {
+      if (!done) cleanup(false);
+    });
+
+    browser.addEventListener('loadstop', (event: any) => {
+      const url = String(event?.url || '');
+      if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
+      if (done) return;
+
+      // Wait for Angular to render, then inject script
+      setTimeout(() => {
+        if (done) return;
+        browser.executeScript({ code: automationScript }, () => {
+          if (done) return;
+          // Call the balance fetcher
+          browser.executeScript({ code: `
+            window.__balanceResult = null;
+            window.__balanceError = null;
+            if (typeof window.fetchSbpdclBalance === 'function') {
+              window.fetchSbpdclBalance('${consumer.caNumber}');
             } else {
-              showToast(`Error: ${errMsg}`, 'error');
-              setIsBalanceOpen(false);
-              setIsBalanceLoading(false);
+              window.__balanceError = 'Script not ready';
             }
-          };
-
-          timeout = setTimeout(() => {
-            finish(false, null, 'Balance fetch timed out. Please try again.');
-          }, 35000);
-
-          // Listen for postMessage from automation script
-          browser.addEventListener('message', (event: any) => {
-            try {
-              const data = JSON.parse(event.data);
-              if (data.type === 'BALANCE_DETAILS') {
-                finish(true, data.details);
-                checkAndNotifyLowBalance(data.details, consumer.name);
-              }
-              else if (data.type === 'BALANCE_ERROR') finish(false, null, data.error);
-              else if (data.type === 'CLOSE_BROWSER') finish(false, null, 'Closed');
-            } catch (e) {}
-          });
-
-          let lastInjectedUrl = '';
-          browser.addEventListener('loadstop', (event: any) => {
-            const url = (event.url || '') as string;
-            // Deduplicate: don't inject twice for the same URL
-            if (url === lastInjectedUrl) return;
-            // Only inject on the SBPDCL website (not on payment gateway pages)
-            if (!url.includes('sbpdcl.co.in') && !url.includes('cportal')) return;
-            lastInjectedUrl = url;
-
-            // Wait 1.5s for Angular to fully render the form, then inject
-            setTimeout(() => {
-              if (done) return;
-              browser.executeScript({ code: automationScript }, () => {
-                // Script is now injected — safe to call immediately
+          ` });
+          // Poll for result every 2 seconds
+          pollInterval = setInterval(() => {
+            if (done) return;
+            browser.executeScript(
+              { code: `JSON.stringify({ r: window.__balanceResult, e: window.__balanceError })` },
+              (res: any) => {
                 if (done) return;
-                browser.executeScript({
-                  code: `(function(){
-                    window.__balanceResult = null;
-                    window.__balanceError = null;
-                    if(typeof window.fetchSbpdclBalance==='function'){
-                      window.fetchSbpdclBalance('${consumer.caNumber}');
-                    } else {
-                      window.__balanceError = 'Script not loaded';
-                    }
-                  })();`
-                });
-
-                // Polling fallback every 2s
-                if (pollInterval) clearInterval(pollInterval);
-                pollInterval = setInterval(() => {
-                  if (done) return;
-                  browser.executeScript(
-                    { code: `JSON.stringify({ result: window.__balanceResult || null, error: window.__balanceError || null })` },
-                    (res: any) => {
-                      if (done) return;
-                      try {
-                        const data = JSON.parse(res?.[0] || '{}');
-                        if (data.result) {
-                          const resultCa = String(data.result?.caNumber || '').replace(/\D/g, '');
-                          if (resultCa && expectedCa && resultCa !== expectedCa) return;
-                          finish(true, data.result);
-                          checkAndNotifyLowBalance(data.result, consumer.name);
-                        }
-                        else if (data.error) finish(false, null, data.error);
-                      } catch (e) {}
-                    }
-                  );
-                }, 2000);
-              });
-            }, 1500);
-          });
-
-          browser.addEventListener('exit', () => {
-            if (pollInterval) clearInterval(pollInterval);
-            if (timeout) clearTimeout(timeout);
-            if (!done) { done = true; setIsBalanceLoading(false); setIsBalanceOpen(false); }
-          });
-      } else { showToast(t.toast.browserError, 'error'); setIsBalanceOpen(false); setIsBalanceLoading(false); }
-      } else { showToast(t.toast.balanceOnly, 'error'); }
+                try {
+                  const d = JSON.parse(res?.[0] || '{}');
+                  if (d.r) cleanup(true, undefined, d.r);
+                  else if (d.e) cleanup(false, d.e);
+                } catch (_) {}
+              }
+            );
+          }, 2000);
+        });
+      }, 2000);
     });
   };
 
   const fetchBalanceSilently = (consumer: Consumer): Promise<void> => {
-    return new Promise((resolve) => {
-      import('@capacitor/core').then(({ Capacitor }) => {
+    return new Promise(async (resolve) => {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
         if (!Capacitor.isNativePlatform()) { resolve(); return; }
-        Network.getStatus().then(status => {
-          if (!status.connected) { resolve(); return; }
-          const win = window as any;
-          if (!win.cordova?.InAppBrowser) { resolve(); return; }
+        const status = await Network.getStatus();
+        if (!status.connected) { resolve(); return; }
+        const win = window as any;
+        if (!win.cordova?.InAppBrowser) { resolve(); return; }
 
-          let done = false;
-          let pollInterval: any = null;
-          let timeout: any = null;
-          let lastInjectedUrl = '';
-          const expectedCa = (consumer.caNumber || '').replace(/\D/g, '');
+        const browser = win.cordova.InAppBrowser.open(
+          'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
+          '_blank',
+          'hidden=yes,clearcache=yes,clearsessioncache=yes'
+        );
 
-          const finish = (data?: BalanceDetails) => {
-            if (done) return;
-            done = true;
-            if (pollInterval) clearInterval(pollInterval);
-            if (timeout) clearTimeout(timeout);
-            try { browser.close(); } catch(e){}
-            
-            if (data) {
-              // Persist the fetched balance for low balance reminders
-              updateConsumer(consumer.id, {
-                lastFetchedBalance: data.availableBalance,
-                lastFetchedDate: new Date().toLocaleDateString('en-GB'),
-                currentStatus: data.currentStatus
-              });
-              // Keep it in session state for the UI to display until refresh/restart
-              setSessionBalances(prev => ({
-                ...prev,
-                [consumer.id]: {
-                  balance: data.availableBalance,
-                  date: new Date().toLocaleDateString('en-GB'),
-                  status: data.currentStatus
-                }
-              }));
-              checkAndNotifyLowBalance(data, consumer.name);
-            }
-            resolve();
-          };
+        let done = false;
+        let pollInterval: any = null;
+        const timeout = setTimeout(() => finish(), 30000);
 
-          const browser = win.cordova.InAppBrowser.open(
-            'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
-            '_blank',
-            'hidden=yes,clearcache=yes,clearsessioncache=yes'
-          );
-
-          timeout = setTimeout(() => finish(), 35000);
-
-          browser.addEventListener('message', (event: any) => {
-            try {
-              const data = JSON.parse(event.data);
-              if (data.type === 'BALANCE_DETAILS') {
-                const resultCa = String(data.details?.caNumber || '').replace(/\D/g, '');
-                if (resultCa && expectedCa && resultCa !== expectedCa) return;
-                finish(data.details);
+        function finish(data?: any) {
+          if (done) return;
+          done = true;
+          clearTimeout(timeout);
+          if (pollInterval) clearInterval(pollInterval);
+          try { browser.close(); } catch (_) {}
+          if (data) {
+            updateConsumer(consumer.id, {
+              lastFetchedBalance: data.availableBalance,
+              lastFetchedDate: new Date().toLocaleDateString('en-GB'),
+              currentStatus: data.currentStatus
+            });
+            setSessionBalances(prev => ({
+              ...prev,
+              [consumer.id]: {
+                balance: data.availableBalance,
+                date: new Date().toLocaleDateString('en-GB'),
+                status: data.currentStatus
               }
-              else if (data.type === 'BALANCE_ERROR' || data.type === 'CLOSE_BROWSER') finish();
-            } catch(e) {}
-          });
+            }));
+            checkAndNotifyLowBalance(data, consumer.name);
+          }
+          resolve();
+        }
 
-          browser.addEventListener('loadstop', (event: any) => {
-            const url = String(event?.url || '');
-            if (url === lastInjectedUrl) return;
-            if (url && !url.includes('sbpdcl.co.in') && !url.includes('cportal')) return;
-            lastInjectedUrl = url;
-            setTimeout(() => {
+        browser.addEventListener('exit', () => finish());
+
+        browser.addEventListener('loadstop', (event: any) => {
+          const url = String(event?.url || '');
+          if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
+          if (done) return;
+
+          setTimeout(() => {
+            if (done) return;
+            browser.executeScript({ code: automationScript }, () => {
               if (done) return;
-              browser.executeScript({ code: automationScript }, () => {
-                // Script confirmed injected — call immediately
+              browser.executeScript({ code: `
+                window.__balanceResult = null;
+                window.__balanceError = null;
+                if (typeof window.fetchSbpdclBalance === 'function') {
+                  window.fetchSbpdclBalance('${consumer.caNumber}');
+                } else {
+                  window.__balanceError = 'Script not ready';
+                }
+              ` });
+              pollInterval = setInterval(() => {
                 if (done) return;
-                browser.executeScript({
-                  code: `(function(){
-                    window.__balanceResult = null;
-                    window.__balanceError = null;
-                    if(typeof window.fetchSbpdclBalance==='function'){
-                      window.fetchSbpdclBalance('${consumer.caNumber}');
-                    } else {
-                      window.__balanceError = 'Script not loaded';
-                    }
-                  })();`
-                });
-
-                if (pollInterval) clearInterval(pollInterval);
-                pollInterval = setInterval(() => {
-                  if (done) return;
-                  browser.executeScript(
-                    { code: `JSON.stringify({ result: window.__balanceResult || null, error: window.__balanceError || null })` },
-                    (res: any) => {
-                      if (done) return;
-                      try {
-                        const data = JSON.parse(res?.[0] || '{}');
-                        if (data.result) {
-                          const resultCa = String(data.result?.caNumber || '').replace(/\D/g, '');
-                          if (resultCa && expectedCa && resultCa !== expectedCa) return;
-                          finish(data.result);
-                        }
-                        else if (data.error) finish();
-                      } catch (e) {}
-                    }
-                  );
-                }, 2000);
-              });
-            }, 1500);
-          });
-          browser.addEventListener('exit', () => finish());
+                browser.executeScript(
+                  { code: `JSON.stringify({ r: window.__balanceResult, e: window.__balanceError })` },
+                  (res: any) => {
+                    if (done) return;
+                    try {
+                      const d = JSON.parse(res?.[0] || '{}');
+                      if (d.r) finish(d.r);
+                      else if (d.e) finish();
+                    } catch (_) {}
+                  }
+                );
+              }, 2000);
+            });
+          }, 2000);
         });
-      });
+      } catch (_) { resolve(); }
     });
   };
+
 
   const syncAllMeters = async () => {
     if (consumers.length === 0 || isSyncing) return;
