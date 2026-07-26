@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   cordova: {
     preferences: {
-      AllowedSchemes: 'upi,tez,paytmmp,phonepe,gpay,bhim'
+      AllowedSchemes: 'upi,tez,paytmmp,phonepe,gpay,bhim,amazonpay,credpay,mobikwik,induspay,iMobile,axispay,slicepay,fampay,navi,myairtel,bajajfinservmarkets,lotza,olamoney,snapchat'
     }
   }
 };

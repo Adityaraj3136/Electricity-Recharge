@@ -3,25 +3,89 @@
 
     <!-- Allow querying/launching UPI apps on Android 11+ (API 30+) -->
     <queries>
+        <!-- Generic UPI scheme (all UPI apps respond to this) -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="upi" />
         </intent>
+        <!-- Google Pay -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="tez" />
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="gpay" />
+        </intent>
+        <!-- Paytm -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
             <data android:scheme="paytmmp" />
         </intent>
+        <!-- PhonePe -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="phonepe" />
         </intent>
+        <!-- BHIM -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="gpay" />
+            <data android:scheme="bhim" />
+        </intent>
+        <!-- Amazon Pay -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="amazonpay" />
+        </intent>
+        <!-- CRED -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="credpay" />
+        </intent>
+        <!-- MobiKwik -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="mobikwik" />
+        </intent>
+        <!-- IndusInd Bank - IndPay -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="induspay" />
+        </intent>
+        <!-- ICICI iMobile -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="iMobile" />
+        </intent>
+        <!-- Axis Bank -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="axispay" />
+        </intent>
+        <!-- Slice -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="slicepay" />
+        </intent>
+        <!-- FamPay -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="fampay" />
+        </intent>
+        <!-- Navi -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="navi" />
+        </intent>
+        <!-- Airtel Payments Bank -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="myairtel" />
+        </intent>
+        <!-- Ola Money -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="olamoney" />
         </intent>
     </queries>
 
