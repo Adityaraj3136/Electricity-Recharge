@@ -283,6 +283,7 @@ export function Home() {
         // Open UPI payment apps in system browser; keep IAB open for timer/acknowledgement page
         let lastUpiIntentUrl = '';
         let lastUpiIntentAt = 0;
+        let upiWasTriggered = false;
         const openUpiIntent = (url: string) => {
           const cleanUrl = String(url || '').trim();
           if (!cleanUrl) return;
@@ -291,12 +292,22 @@ export function Home() {
                               lowerUrl.startsWith('paytmmp://') || lowerUrl.startsWith('phonepe://') ||
                               lowerUrl.startsWith('tez://') || lowerUrl.startsWith('gpay://');
           if (!isUpiIntent) return;
+          upiWasTriggered = true;
           const now = Date.now();
           if (cleanUrl === lastUpiIntentUrl && now - lastUpiIntentAt < 1500) return;
           lastUpiIntentUrl = cleanUrl;
           lastUpiIntentAt = now;
           win.cordova.InAppBrowser.open(cleanUrl, '_system');
         };
+
+        browser.addEventListener('exit', () => {
+          if (upiWasTriggered) {
+            setTimeout(() => {
+              showToast(lang === 'en' ? 'Checking updated balance after payment...' : 'भुगतान के बाद अद्यतन राशि की जाँच की जा रही है...');
+              handleCheckBalance(consumer);
+            }, 500);
+          }
+        });
 
         browser.addEventListener('loadstart', (event: any) => {
           const url = String(event?.url || '');
