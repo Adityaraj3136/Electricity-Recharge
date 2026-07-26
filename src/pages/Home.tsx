@@ -284,6 +284,8 @@ export function Home() {
         let lastUpiIntentUrl = '';
         let lastUpiIntentAt = 0;
         let upiWasTriggered = false;
+        let autoCloseTimer: any = null;
+
         const openUpiIntent = (url: string) => {
           const cleanUrl = String(url || '').trim();
           if (!cleanUrl) return;
@@ -300,12 +302,14 @@ export function Home() {
           win.cordova.InAppBrowser.open(cleanUrl, '_system');
         };
 
+        // When browser exits (user taps Home button or auto-close fires) — refresh balance if UPI was used
         browser.addEventListener('exit', () => {
+          if (autoCloseTimer) clearTimeout(autoCloseTimer);
           if (upiWasTriggered) {
             setTimeout(() => {
               showToast(lang === 'en' ? 'Checking updated balance after payment...' : 'भुगतान के बाद अद्यतन राशि की जाँच की जा रही है...');
               handleCheckBalance(consumer);
-            }, 500);
+            }, 600);
           }
         });
 
@@ -314,11 +318,41 @@ export function Home() {
           
           // Intercept floating close button click
           if (url === 'https://app.close.browser/') {
+            if (autoCloseTimer) clearTimeout(autoCloseTimer);
             browser.close();
             return;
           }
 
           openUpiIntent(url);
+
+          // Detect return to SBPDCL search page AFTER payment (acknowledgement complete)
+          // The Juspay gateway redirects back to sbpdcl searchbill page when done
+          if (upiWasTriggered && (url.includes('sbpdcl') || url.includes('cportal')) && !autoCloseTimer) {
+            // Start 12-second countdown to auto-close browser and return home
+            let countdown = 12;
+            const tick = () => {
+              browser.executeScript({ code: `
+                (function() {
+                  var existing = document.getElementById('bijli-autoclosetimer');
+                  if (!existing) {
+                    existing = document.createElement('div');
+                    existing.id = 'bijli-autoclosetimer';
+                    existing.style = 'position:fixed; top:16px; left:50%; transform:translateX(-50%); background:#0f172a; border:2px solid #22c55e; color:white; padding:10px 22px; border-radius:30px; z-index:2147483647; font-weight:bold; box-shadow:0 8px 16px rgba(0,0,0,0.5); font-family:sans-serif; font-size:14px; text-align:center; white-space:nowrap;';
+                    document.body.appendChild(existing);
+                  }
+                  existing.innerHTML = '✅ Payment done — Returning home in ${countdown}s';
+                })();
+              `});
+              countdown--;
+              if (countdown >= 0) {
+                autoCloseTimer = setTimeout(tick, 1000);
+              } else {
+                autoCloseTimer = null;
+                try { browser.close(); } catch(_) {}
+              }
+            };
+            tick();
+          }
         });
 
         browser.addEventListener('loaderror', (event: any) => {
