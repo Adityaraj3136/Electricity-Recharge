@@ -14,17 +14,36 @@ interface BalanceModalProps {
   onRecharge?: (amount: string) => void;
 }
 
-export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view', defaultAmount = '100', onRecharge }: BalanceModalProps) {
-  const [payAmount, setPayAmount] = useState(defaultAmount || '100');
+export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view', defaultAmount = '', onRecharge }: BalanceModalProps) {
+  const [payAmount, setPayAmount] = useState('');
+  const [amountError, setAmountError] = useState('');
 
-  // Sync default amount when details load or defaultAmount changes
+  // Reset field when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setPayAmount(defaultAmount || '100');
+      // Only pre-fill if consumer has a saved preferred amount
+      setPayAmount(defaultAmount || '');
+      setAmountError('');
     } else {
       setPayAmount('');
+      setAmountError('');
     }
   }, [isOpen, details, defaultAmount]);
+
+  const handleAmountChange = (val: string) => {
+    // Allow only digits
+    const digits = val.replace(/[^0-9]/g, '');
+    setPayAmount(digits);
+    if (!digits) {
+      setAmountError('Please enter an amount');
+    } else if (parseInt(digits) < 100) {
+      setAmountError('Minimum recharge amount is ₹100');
+    } else {
+      setAmountError('');
+    }
+  };
+
+  const isAmountValid = !!payAmount && parseInt(payAmount) >= 100;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={mode === 'recharge' ? "Recharge Details" : "Balance Details"}>
@@ -111,14 +130,25 @@ export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view
                     inputMode="numeric"
                     pattern="[0-9]*"
                     value={payAmount}
-                    onChange={(e) => setPayAmount(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none"
-                    placeholder="Enter Amount"
+                    onChange={(e) => handleAmountChange(e.target.value)}
+                    className={`block w-full pl-10 pr-4 py-3 bg-gray-50 border rounded-xl text-lg font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none ${
+                      amountError ? 'border-red-400 focus:ring-red-400 focus:border-red-400' : 'border-gray-200'
+                    }`}
+                    placeholder="Enter amount (min ₹100)"
                   />
                 </div>
+                {amountError && (
+                  <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                    <span>⚠️</span> {amountError}
+                  </p>
+                )}
+                {!amountError && payAmount && (
+                  <p className="text-xs text-green-600 mt-1.5">✓ Amount looks good</p>
+                )}
               </div>
             </div>
           )}
+
 
           <div className="pt-2 flex gap-3">
             <Button className={mode === 'recharge' ? "flex-1" : "w-full"} onClick={onClose} variant="secondary">
@@ -128,7 +158,7 @@ export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view
               <Button 
                 className="flex-[2]" 
                 onClick={() => onRecharge?.(payAmount)} 
-                disabled={!payAmount || parseInt(payAmount) < 100}
+                disabled={!isAmountValid}
               >
                 Proceed to Pay
               </Button>
