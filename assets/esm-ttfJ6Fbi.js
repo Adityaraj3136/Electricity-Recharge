@@ -1,2 +1,0 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/web-Dii2ZFXP.js","assets/index-C0IpRijz.js","assets/index-BiYCcLqS.css"])))=>i.map(i=>d[i]);
-import{a as e,r as t}from"./index-C0IpRijz.js";var n=e(`BackgroundTask`,{web:()=>t(()=>import(`./web-Dii2ZFXP.js`).then(e=>new e.BackgroundTaskWeb),__vite__mapDeps([0,1,2]))});export{n as BackgroundTask};
