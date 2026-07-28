@@ -1358,7 +1358,7 @@ export function Home() {
         details={balanceDetails}
         isLoading={isBalanceLoading}
         mode={balanceModalMode}
-        defaultAmount={activeConsumer?.preferredAmount || MIN_RECHARGE_AMOUNT}
+        defaultAmount={activeConsumer?.preferredAmount || ''}
         caNumber={activeConsumer?.caNumber}
         isCached={!!(balanceDetails && activeConsumer?.lastFetchedBalance && balanceDetails.availableBalance === activeConsumer.lastFetchedBalance)}
         onRecharge={(amount) => {
