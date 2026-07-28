@@ -14,8 +14,8 @@ export default defineConfig({
         name: 'Bijli Recharge',
         short_name: 'Bijli',
         description: 'Quickly recharge SBPDCL prepaid electricity meters for your family.',
-        start_url: '/',
-        scope: '/',
+        start_url: '/Electricity-Recharge/',
+        scope: '/Electricity-Recharge/',
         display: 'standalone',
         // display_override tries window-controls-overlay on desktop first, falls back to standalone
         display_override: ['standalone', 'minimal-ui'],

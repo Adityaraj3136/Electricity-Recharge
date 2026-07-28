@@ -6,9 +6,10 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-// Detect if already installed (running as PWA)
+// Detect if already installed (running as PWA / standalone)
 const isInstalledPWA = () =>
   window.matchMedia('(display-mode: standalone)').matches ||
+  window.matchMedia('(display-mode: minimal-ui)').matches ||
   (window.navigator as any).standalone === true;
 
 // Detect if running inside Capacitor native app
