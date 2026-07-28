@@ -21,7 +21,7 @@ interface BalanceModalProps {
 export function BalanceModal({
   isOpen, onClose, details, isLoading,
   mode = 'view', defaultAmount = '', onRecharge,
-  isCached = false, caNumber = ''
+  isCached = false
 }: BalanceModalProps) {
   const [payAmount, setPayAmount] = useState('');
   const [amountError, setAmountError] = useState('');
