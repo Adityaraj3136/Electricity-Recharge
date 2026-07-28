@@ -2,11 +2,50 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+
+    <!-- Viewport: cover notch/status bar, no rubber-band zoom -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+
+    <!-- Primary meta -->
+    <title>Bijli Recharge — SBPDCL Prepaid Meter</title>
+    <meta name="description" content="Quickly recharge SBPDCL prepaid electricity meters for your family. Fast, secure, and reliable." />
+    <meta name="keywords" content="SBPDCL, bijli recharge, electricity bill, prepaid meter, Bihar electricity" />
+    <meta name="author" content="Aditya" />
+
+    <!-- Theme colour (blue = app header colour) -->
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="msapplication-TileColor" content="#2563eb" />
+
+    <!-- ===== Android PWA ===== -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/Electricity-Recharge/manifest.webmanifest" />
+
+    <!-- ===== iOS / Safari ===== -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Bijli" />
+    <link rel="apple-touch-icon" href="/Electricity-Recharge/icons/icon-192.webp" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/Electricity-Recharge/icons/icon-128.webp" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/Electricity-Recharge/icons/icon-192.webp" />
+
+    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/Electricity-Recharge/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bijli Recharge</title>
-    <script type="module" crossorigin src="/Electricity-Recharge/assets/index-BrNj5QPH.js"></script>
-    <link rel="stylesheet" crossorigin href="/Electricity-Recharge/assets/index-B9ijAK1Q.css">
+    <link rel="icon" type="image/webp" sizes="96x96" href="/Electricity-Recharge/icons/icon-96.webp" />
+
+    <!-- Prevent FOUC on dark mode -->
+    <script>
+      (function() {
+        try {
+          var s = localStorage.getItem('sbpdcl_settings');
+          if (s) {
+            var p = JSON.parse(s);
+            if (p.darkMode) document.documentElement.classList.add('dark');
+          }
+        } catch(e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/Electricity-Recharge/assets/index-B7RW8hj9.js"></script>
+    <link rel="stylesheet" crossorigin href="/Electricity-Recharge/assets/index-CCYRpeqM.css">
   <link rel="manifest" href="/Electricity-Recharge/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/Electricity-Recharge/registerSW.js"></script></head>
   <body>
     <div id="root"></div>
