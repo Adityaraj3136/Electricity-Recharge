@@ -1,47 +1,22 @@
 {
-  "background_color": "#7c3aed",
+  "name": "Bijli Recharge",
+  "short_name": "Bijli",
+  "description": "Quickly recharge SBPDCL prepaid electricity meters for your family.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "en-IN",
+  "theme_color": "#2563eb",
+  "background_color": "#0e1726",
+  "categories": ["utilities", "finance"],
   "icons": [
-    {
-      "src": "../icons/icon-48.webp",
-      "type": "image/png",
-      "sizes": "48x48",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "../icons/icon-72.webp",
-      "type": "image/png",
-      "sizes": "72x72",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "../icons/icon-96.webp",
-      "type": "image/png",
-      "sizes": "96x96",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "../icons/icon-128.webp",
-      "type": "image/png",
-      "sizes": "128x128",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "../icons/icon-192.webp",
-      "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "../icons/icon-256.webp",
-      "type": "image/png",
-      "sizes": "256x256",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "../icons/icon-512.webp",
-      "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any maskable"
-    }
+    { "src": "/icons/icon-48.webp",  "sizes": "48x48",   "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-72.webp",  "sizes": "72x72",   "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-96.webp",  "sizes": "96x96",   "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-128.webp", "sizes": "128x128", "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-192.webp", "sizes": "192x192", "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-256.webp", "sizes": "256x256", "type": "image/webp", "purpose": "any" },
+    { "src": "/icons/icon-512.webp", "sizes": "512x512", "type": "image/webp", "purpose": "any maskable" }
   ]
 }

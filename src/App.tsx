@@ -3,6 +3,7 @@ import { Home } from './pages/Home';
 import { SettingsProvider, useSettings } from './hooks/useSettings';
 import { Lock } from 'lucide-react';
 import { Onboarding, hasCompletedOnboarding } from './components/Onboarding';
+import { InstallPrompt } from './components/InstallPrompt';
 
 // Detect if running inside the native Capacitor app
 const isNative = () => {
@@ -78,6 +79,7 @@ function AppInner() {
   return (
     <div className="antialiased min-h-screen max-w-[100vw] overflow-x-hidden bg-slate-50 dark:bg-[#0e1726] transition-colors duration-300">
       <Home />
+      <InstallPrompt />
     </div>
   );
 }
