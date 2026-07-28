@@ -58,7 +58,7 @@ export function Home() {
   const [name, setName] = useState('');
   const [caNumber, setCaNumber] = useState('');
   const [mobile, setMobile] = useState('');
-  const [amount, setAmount] = useState(MIN_RECHARGE_AMOUNT);
+  const [amount, setAmount] = useState('');
   const [gateway, setGateway] = useState('HDFC');
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -75,7 +75,7 @@ export function Home() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Per-field form errors
-  const [formErrors, setFormErrors] = useState<{ name?: string; caNumber?: string; mobile?: string }>({});
+  const [formErrors, setFormErrors] = useState<{ name?: string; caNumber?: string; mobile?: string; amount?: string }>({});
 
   // Pull-to-refresh — only active on home tab, not during automation or payment
   const isAutomating = !!iframeConsumer;
@@ -227,15 +227,21 @@ export function Home() {
 
   const resetForm = () => {
     setName(''); setCaNumber(''); setMobile('');
-    setAmount(MIN_RECHARGE_AMOUNT); setGateway('HDFC'); setEditingConsumer(null);
+    setAmount(''); setGateway('HDFC'); setEditingConsumer(null);
     setFormErrors({});
   };
 
   const handleSave = () => {
-    const errors: { name?: string; caNumber?: string; mobile?: string } = {};
+    const errors: { name?: string; caNumber?: string; mobile?: string; amount?: string } = {};
     if (!name.trim()) errors.name = lang === 'en' ? 'Location name is required' : 'स्थान का नाम आवश्यक है';
     if (!caNumber.trim()) errors.caNumber = lang === 'en' ? 'CA Number is required' : 'CA नंबर आवश्यक है';
     if (!mobile.trim()) errors.mobile = lang === 'en' ? 'Mobile number is required for recharge' : 'रिचार्ज के लिए मोबाइल नंबर आवश्यक है';
+    
+    const cleanAmount = sanitizeNumber(amount);
+    if (cleanAmount && parseInt(cleanAmount) < 100) {
+      errors.amount = lang === 'en' ? 'Minimum amount is ₹100' : 'न्यूनतम राशि ₹100 है';
+    }
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
@@ -245,7 +251,7 @@ export function Home() {
       name: sanitizeText(name),
       caNumber: sanitizeNumber(caNumber),
       mobileNumber: sanitizeNumber(mobile),
-      preferredAmount: sanitizeNumber(amount) || MIN_RECHARGE_AMOUNT,
+      preferredAmount: cleanAmount, // can be blank
       preferredGateway: gateway as any
     };
     if (editingConsumer) { updateConsumer(editingConsumer.id, data); } else { addConsumer(data); }
@@ -1053,7 +1059,7 @@ export function Home() {
                               setName(consumer.name);
                               setCaNumber(consumer.caNumber);
                               setMobile(consumer.mobileNumber || '');
-                              setAmount(consumer.preferredAmount || MIN_RECHARGE_AMOUNT);
+                              setAmount(consumer.preferredAmount || '');
                               setGateway(consumer.preferredGateway || 'HDFC');
                               setIsAddOpen(true); 
                               setActionMenuId(null); 
@@ -1313,8 +1319,9 @@ export function Home() {
               inputMode="numeric"
               pattern="[0-9]*"
               value={amount}
-              onChange={e => setAmount(sanitizeNumber(e.target.value))}
+              onChange={e => { setAmount(sanitizeNumber(e.target.value)); setFormErrors(prev => ({ ...prev, amount: undefined })); }}
               placeholder={t.form.placeholderAmount}
+              error={formErrors.amount}
             />
           </div>
           <Select label={t.form.labelGateway} value={gateway} onChange={e => setGateway(e.target.value)} options={[
