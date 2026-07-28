@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import type { BalanceDetails } from '../types';
-import { User, Activity, Calendar, CreditCard, XCircle, CheckCircle, IndianRupee } from 'lucide-react';
+import { User, Activity, Calendar, CreditCard, XCircle, CheckCircle, IndianRupee, ExternalLink, Clock } from 'lucide-react';
 
 interface BalanceModalProps {
   isOpen: boolean;
@@ -12,16 +12,23 @@ interface BalanceModalProps {
   mode?: 'view' | 'recharge';
   defaultAmount?: string;
   onRecharge?: (amount: string) => void;
+  /** When true, data is from local cache (PWA mode) — show a "cached" notice */
+  isCached?: boolean;
+  /** CA number used to build the portal deep-link */
+  caNumber?: string;
 }
 
-export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view', defaultAmount = '', onRecharge }: BalanceModalProps) {
+export function BalanceModal({
+  isOpen, onClose, details, isLoading,
+  mode = 'view', defaultAmount = '', onRecharge,
+  isCached = false, caNumber = ''
+}: BalanceModalProps) {
   const [payAmount, setPayAmount] = useState('');
   const [amountError, setAmountError] = useState('');
 
   // Reset field when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      // Only pre-fill if consumer has a saved preferred amount
       setPayAmount(defaultAmount || '');
       setAmountError('');
     } else {
@@ -31,7 +38,6 @@ export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view
   }, [isOpen, details, defaultAmount]);
 
   const handleAmountChange = (val: string) => {
-    // Allow only digits
     const digits = val.replace(/[^0-9]/g, '');
     setPayAmount(digits);
     if (!digits) {
@@ -45,17 +51,37 @@ export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view
 
   const isAmountValid = !!payAmount && parseInt(payAmount) >= 100;
 
+  const portalUrl = `https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill`;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={mode === 'recharge' ? "Recharge Details" : "Balance Details"}>
+    <Modal isOpen={isOpen} onClose={onClose} title={mode === 'recharge' ? 'Recharge Details' : 'Balance Details'}>
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
           <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-700 font-medium text-lg mb-1">{mode === 'recharge' ? 'Fetching Details...' : 'Fetching Details...'}</p>
+          <p className="text-gray-700 font-medium text-lg mb-1">Fetching Details...</p>
           <p className="text-gray-500 text-sm">Please wait while we securely connect to SBPDCL.</p>
         </div>
       ) : details ? (
-        <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4">
-          
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+
+          {/* ── Cached-data notice (PWA only) ── */}
+          {isCached && (
+            <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+              <div className="flex items-center gap-2 text-amber-700 text-xs font-medium">
+                <Clock size={13} className="flex-shrink-0" />
+                Cached balance — may not reflect latest recharge
+              </div>
+              <a
+                href={portalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs font-bold text-primary-600 underline underline-offset-2 whitespace-nowrap"
+              >
+                Live check <ExternalLink size={11} />
+              </a>
+            </div>
+          )}
+
           {/* Header Card */}
           <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-4 border border-primary-200 shadow-sm">
             <div className="flex items-center gap-3 mb-2">
@@ -101,18 +127,20 @@ export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view
           </div>
 
           {/* Last Recharge Info */}
-          <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm space-y-3">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Calendar size={16} className="text-gray-400" /> 
-                <span className="font-medium">Last Recharge</span>
-              </div>
-              <div className="text-right">
-                <div className="font-bold text-gray-900">{details.lastRechargeAmount}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{details.lastRechargeDate}</div>
+          {details.lastRechargeDate !== 'N/A' && (
+            <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm space-y-3">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Calendar size={16} className="text-gray-400" />
+                  <span className="font-medium">Last Recharge</span>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-gray-900">{details.lastRechargeAmount}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{details.lastRechargeDate}</div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Recharge Section */}
           {mode === 'recharge' && (
@@ -149,15 +177,14 @@ export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view
             </div>
           )}
 
-
           <div className="pt-2 flex gap-3">
-            <Button className={mode === 'recharge' ? "flex-1" : "w-full"} onClick={onClose} variant="secondary">
+            <Button className={mode === 'recharge' ? 'flex-1' : 'w-full'} onClick={onClose} variant="secondary">
               {mode === 'recharge' ? 'Cancel' : 'Close'}
             </Button>
             {mode === 'recharge' && (
-              <Button 
-                className="flex-[2]" 
-                onClick={() => onRecharge?.(payAmount)} 
+              <Button
+                className="flex-[2]"
+                onClick={() => onRecharge?.(payAmount)}
                 disabled={!isAmountValid}
               >
                 Proceed to Pay
@@ -166,9 +193,26 @@ export function BalanceModal({ isOpen, onClose, details, isLoading, mode = 'view
           </div>
         </div>
       ) : (
-        <div className="text-center py-8">
-          <p className="text-red-500 font-medium">Failed to load details.</p>
-          <Button className="mt-4" onClick={onClose} variant="secondary">Close</Button>
+        /* No cached data yet (PWA first launch) */
+        <div className="text-center py-8 px-4">
+          <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock size={26} className="text-amber-500" />
+          </div>
+          <p className="font-semibold text-gray-900 mb-1">No cached balance</p>
+          <p className="text-gray-500 text-sm mb-5">
+            Balance fetch requires the Android app. Once fetched, it will be available here too.
+          </p>
+          <a
+            href={portalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-primary-500/30"
+          >
+            Check on SBPDCL Portal <ExternalLink size={14} />
+          </a>
+          <div className="mt-4">
+            <Button onClick={onClose} variant="secondary" className="w-full">Close</Button>
+          </div>
         </div>
       )}
     </Modal>

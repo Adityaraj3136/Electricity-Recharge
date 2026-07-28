@@ -420,8 +420,33 @@ export function Home() {
     if (!status.connected) { showToast(t.toast.offline, 'error'); return; }
 
     const { Capacitor } = await import('@capacitor/core');
-    if (!Capacitor.isNativePlatform()) { showToast(t.toast.balanceOnly, 'error'); return; }
 
+    // ── PWA / browser fallback ──────────────────────────────────────────────
+    // InAppBrowser is only available in native. In the PWA, show the cached
+    // balance (synced from the last native session) with a portal deep-link.
+    if (!Capacitor.isNativePlatform()) {
+      setIsBalanceOpen(true);
+      setIsBalanceLoading(false);
+      if (consumer.lastFetchedBalance) {
+        setBalanceDetails({
+          caNumber:          consumer.caNumber,
+          name:              consumer.name,
+          division:          '',
+          subDivision:       '',
+          lastRechargeDate:  consumer.lastFetchedDate || 'N/A',
+          lastRechargeAmount:'N/A',
+          consumerType:      '',
+          currentStatus:     consumer.currentStatus || 'N/A',
+          availableBalance:  consumer.lastFetchedBalance,
+          amispVendor:       ''
+        });
+      } else {
+        setBalanceDetails(null);
+        showToast('No cached balance yet. Use the Android app to fetch balance first.', 'info');
+      }
+      return;
+    }
+    // ── Native (Capacitor) path ─────────────────────────────────────────────
     const win = window as any;
     if (!win.cordova?.InAppBrowser) { showToast(t.toast.browserError, 'error'); return; }
 
@@ -1327,6 +1352,8 @@ export function Home() {
         isLoading={isBalanceLoading}
         mode={balanceModalMode}
         defaultAmount={activeConsumer?.preferredAmount || MIN_RECHARGE_AMOUNT}
+        caNumber={activeConsumer?.caNumber}
+        isCached={!!(balanceDetails && activeConsumer?.lastFetchedBalance && balanceDetails.availableBalance === activeConsumer.lastFetchedBalance)}
         onRecharge={(amount) => {
           setIsBalanceOpen(false);
           setBalanceDetails(null);
