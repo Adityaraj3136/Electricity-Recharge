@@ -1,1 +1,0 @@
-import{i as e}from"./index-B7RW8hj9.js";var t=class extends e{beforeExit(e){throw this.unimplemented(`Not implemented on web.`)}finish(e){throw this.unimplemented(`Not implemented on web.`)}};export{t as BackgroundTaskWeb};
