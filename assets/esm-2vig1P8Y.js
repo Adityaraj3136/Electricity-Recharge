@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/web-DeQS-VQ3.js","assets/index-9NlfS02P.js","assets/index-BDMte9WK.css"])))=>i.map(i=>d[i]);
+import{n as e,r as t}from"./index-9NlfS02P.js";var n;(function(e){e[e.Sunday=1]=`Sunday`,e[e.Monday=2]=`Monday`,e[e.Tuesday=3]=`Tuesday`,e[e.Wednesday=4]=`Wednesday`,e[e.Thursday=5]=`Thursday`,e[e.Friday=6]=`Friday`,e[e.Saturday=7]=`Saturday`})(n||={});var r=e(`LocalNotifications`,{web:()=>t(()=>import(`./web-DeQS-VQ3.js`).then(e=>new e.LocalNotificationsWeb),__vite__mapDeps([0,1,2]))});export{r as LocalNotifications};
