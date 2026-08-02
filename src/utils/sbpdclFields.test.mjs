@@ -6,7 +6,7 @@
  * Run: node src/utils/sbpdclFields.test.mjs
  */
 import assert from 'node:assert';
-import { formatRupees, pick, selectBalance } from './sbpdclFields.ts';
+import { formatRupees, lookupErrorMessage, pick, selectBalance } from './sbpdclFields.ts';
 
 // Real shapes, captured from CA 23330007524.
 const BILL = {
@@ -69,5 +69,17 @@ assert.strictEqual(
   formatRupees(selectBalance({ ...AMISP_NO_READING, current_balance: '-75.40' }, BILL)),
   '-₹75.40'
 );
+
+// A failed lookup must explain itself. The service answers with a sentence in
+// `message` and a token in `status`; reading status first surfaced a bare "F"
+// as the whole error text. Real shape, from CA 99999999999.
+assert.strictEqual(
+  lookupErrorMessage({ message: 'CA number does not exists', status: 'F', statusCode: '9242' }),
+  'CA number does not exists'
+);
+assert.strictEqual(lookupErrorMessage({ status: 'F' }), 'No consumer found for this CA number.');
+assert.strictEqual(lookupErrorMessage({ message: 'FAILURE' }), 'No consumer found for this CA number.');
+assert.strictEqual(lookupErrorMessage({}), 'No consumer found for this CA number.');
+assert.strictEqual(lookupErrorMessage(null), 'No consumer found for this CA number.');
 
 console.log('sbpdclFields: all assertions passed');

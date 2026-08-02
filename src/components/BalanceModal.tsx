@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import type { BalanceDetails } from '../types';
-import { User, Activity, Calendar, CreditCard, XCircle, CheckCircle, IndianRupee, ExternalLink, Clock } from 'lucide-react';
+import { User, Activity, Calendar, CreditCard, XCircle, CheckCircle, IndianRupee, ExternalLink, Clock, RefreshCw } from 'lucide-react';
 
 interface BalanceModalProps {
   isOpen: boolean;
@@ -16,12 +16,16 @@ interface BalanceModalProps {
   isCached?: boolean;
   /** CA number used to build the portal deep-link */
   caNumber?: string;
+  /** Why the fetch failed, shown verbatim so the user knows what went wrong. */
+  error?: string;
+  /** Re-runs the fetch without making the user close and reopen the modal. */
+  onRetry?: () => void;
 }
 
 export function BalanceModal({
   isOpen, onClose, details, isLoading,
   mode = 'view', defaultAmount = '', onRecharge,
-  isCached = false
+  isCached = false, error = '', onRetry
 }: BalanceModalProps) {
   const [payAmount, setPayAmount] = useState('');
   const [amountError, setAmountError] = useState('');
@@ -191,15 +195,26 @@ export function BalanceModal({
           </div>
         </div>
       ) : (
-        /* Balance unavailable — fetch failed and nothing was saved earlier */
+        /* Balance unavailable — fetch failed and nothing was saved earlier.
+           The specific reason is shown rather than a generic line: "the meter
+           has not reported yet" and "SBPDCL took too long to respond" call for
+           different reactions, and a bare blank panel reads as a broken app. */
         <div className="text-center py-8 px-4">
           <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <Clock size={26} className="text-amber-500" />
           </div>
           <p className="font-semibold text-gray-900 mb-1">Balance unavailable</p>
-          <p className="text-gray-500 text-sm mb-5">
-            Could not reach SBPDCL just now. Try again, or check the portal directly.
+          <p className="text-gray-600 text-sm mb-1.5">
+            {error || 'Could not reach SBPDCL just now.'}
           </p>
+          <p className="text-gray-500 text-sm mb-5">
+            Please try again in a few minutes, or check the portal directly.
+          </p>
+          {onRetry && (
+            <Button onClick={onRetry} className="w-full mb-3">
+              <RefreshCw size={15} /> Try Again
+            </Button>
+          )}
           <a
             href={portalUrl}
             target="_blank"

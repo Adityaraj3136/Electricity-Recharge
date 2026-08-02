@@ -25,6 +25,23 @@ export function pick(source: any, ...names: string[]): string {
 }
 
 /**
+ * Turn a failed consumer lookup into something a person can act on.
+ *
+ * The service reports failure in two registers at once: a sentence in `message`
+ * ("CA number does not exists") and a status token in `status` ("F"). Reading
+ * `status` first surfaced a bare "F" as the entire error text, which tells the
+ * user nothing. Prefer the sentence, and discard the tokens outright — they are
+ * protocol, not prose.
+ */
+const STATUS_TOKEN = /^(f|s|e|failure|success|error|fail)$/i;
+
+export function lookupErrorMessage(bill: any): string {
+  const reason = pick(bill, 'message', 'error', 'status');
+  if (!reason || STATUS_TOKEN.test(reason)) return 'No consumer found for this CA number.';
+  return reason;
+}
+
+/**
  * Render a raw amount as rupees.
  *
  * Prepaid meters go negative once they overdraw, and the sign belongs outside

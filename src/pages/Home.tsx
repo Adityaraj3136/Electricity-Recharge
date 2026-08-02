@@ -104,6 +104,8 @@ export function Home() {
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [balanceDetails, setBalanceDetails] = useState<BalanceDetails | null>(null);
   const [balanceModalMode, setBalanceModalMode] = useState<'view' | 'recharge'>('view');
+  /** Why the last balance fetch failed, so the modal can say so instead of going blank. */
+  const [balanceError, setBalanceError] = useState('');
   const [activeConsumer, setActiveConsumer] = useState<Consumer | null>(null);
   const [activeTab, setActiveTab] = useState<'home' | 'meters'>('home');
   const [isRecharging, setIsRecharging] = useState(false);
@@ -636,6 +638,7 @@ export function Home() {
     // The cached balance shows immediately (if any) so the modal is never empty,
     // then is replaced in place once the live value arrives.
     setIsBalanceOpen(true);
+    setBalanceError('');
     setBalanceDetails(consumer.lastFetchedBalance ? {
       caNumber:           consumer.caNumber,
       name:               consumer.name,
@@ -674,6 +677,9 @@ export function Home() {
       // it, and without one it falls through to the "Balance unavailable" state.
       // Closing it on failure would hide the last known balance and leave only
       // a toast to explain why the screen vanished.
+      // The reason goes to the modal too — a toast is gone in seconds, and a
+      // blank panel with no explanation is what made this look broken.
+      setBalanceError(message);
       if (consumer.lastFetchedBalance) {
         showToast(`Showing last saved balance — ${message}`, 'info');
       } else {
@@ -1608,12 +1614,14 @@ export function Home() {
       {/* Balance Modal */}
       <BalanceModal
         isOpen={isBalanceOpen}
-        onClose={() => { setIsBalanceOpen(false); setBalanceDetails(null); }}
+        onClose={() => { setIsBalanceOpen(false); setBalanceDetails(null); setBalanceError(''); }}
         details={balanceDetails}
         isLoading={isBalanceLoading}
         mode={balanceModalMode}
         defaultAmount={activeConsumer?.preferredAmount || ''}
         caNumber={activeConsumer?.caNumber}
+        error={balanceError}
+        onRetry={activeConsumer ? () => fetchBalanceDetails(activeConsumer) : undefined}
         isCached={!!(balanceDetails && activeConsumer?.lastFetchedBalance && balanceDetails.availableBalance === activeConsumer.lastFetchedBalance)}
         onRecharge={(amount) => {
           setIsBalanceOpen(false);

@@ -18,7 +18,7 @@
 import CryptoJS from 'crypto-js';
 import { JSEncrypt } from 'jsencrypt';
 import type { BalanceDetails } from '../types';
-import { formatRupees, pick, selectBalance } from './sbpdclFields';
+import { formatRupees, lookupErrorMessage, pick, selectBalance } from './sbpdclFields';
 
 const API_BASE = 'https://wss.sbpdcl.co.in/fgweb/web/';
 const CONFIG_URL = API_BASE + 'json/plugin/com.fluentgrid.cp.api.CPCommonConfigService/service';
@@ -150,7 +150,7 @@ async function fetchBillDetails(ca: string): Promise<any> {
   const bill = unwrap(response);
   // Unknown CAs come back 200 with a status message rather than an HTTP error.
   if (!bill || pick(bill, 'message') === 'FAILURE' || (!pick(bill, 'scno') && !pick(bill, 'name'))) {
-    throw new Error(pick(bill, 'status', 'message', 'error') || 'Consumer details not found.');
+    throw new Error(lookupErrorMessage(bill));
   }
   return bill;
 }
@@ -229,7 +229,9 @@ export async function fetchBalanceFromApi(caNumber: string): Promise<BalanceDeta
   // erase the last known figure and could report a payment as confirmed.
   const balanceRaw = selectBalance(prepaid, bill);
   if (!balanceRaw) {
-    throw new Error('The meter has not reported a balance yet. Please try again shortly.');
+    // Cause only — the UI supplies the "try again in a few minutes" advice, and
+    // repeating it here reads as two apologies stacked on top of each other.
+    throw new Error('SBPDCL has not reported a balance for this meter yet.');
   }
 
   // The AMISP reports the recharge the meter actually saw; the payment table
