@@ -36,6 +36,15 @@ assert.strictEqual(selectBalance(AMISP_LIVE, BILL), '247.65');
 assert.strictEqual(selectBalance(AMISP_NO_READING, BILL), '');
 assert.strictEqual(selectBalance(null, BILL), '');
 
+// A genuine zero reading from the meter is a real answer and must survive —
+// only the *bill's* zero is the untrustworthy one.
+assert.strictEqual(selectBalance({ current_balance: '0' }, BILL), '0');
+assert.strictEqual(selectBalance({ current_balance: '0.00' }, BILL), '0.00');
+
+// Overdrawn meters report negative balances; "-" alone still means "no value".
+assert.strictEqual(selectBalance({ current_balance: '-50.25' }, BILL), '-50.25');
+assert.strictEqual(selectBalance({ current_balance: '-' }, BILL), '');
+
 // A non-zero bill figure is still a usable fallback (postpaid / older records).
 assert.strictEqual(selectBalance(null, { availableBalance: '340.00' }), '340.00');
 assert.strictEqual(selectBalance(AMISP_NO_READING, { prepaidBalance: 512 }), '512');

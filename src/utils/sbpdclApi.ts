@@ -139,8 +139,11 @@ function normaliseCa(caNumber: string): string {
 }
 
 /**
- * The portal's bill-search call: one request returning the consumer record plus
- * the live prepaid balance. `billNo` from here is required to start a recharge.
+ * The portal's bill-search call: the consumer record — name, division, vendor —
+ * and `billNo`, which is required to start a recharge.
+ *
+ * Its `prepaidBalance` is a billing figure, NOT the meter's balance: it reads 0
+ * on prepaid connections. The live reading comes from `fetchPrepaidInfo`.
  */
 async function fetchBillDetails(ca: string): Promise<any> {
   const response = await callAction({
@@ -185,8 +188,11 @@ async function fetchLastTransaction(ca: string): Promise<any | null> {
  * calls this endpoint instead (`getBiharCisPrepaidAvailableBalance`) and reads
  * `current_balance`.
  *
- * Best-effort: the AMISP is a third party and answers "-" when it has no live
- * reading, in which case the caller falls back to the bill figure.
+ * Best-effort: the AMISP is a third party and answers "-" across every field
+ * when it has no live reading, so a null return and a dash-filled one mean the
+ * same thing to the caller. It is deliberately not fatal — the consumer record
+ * is still worth having, and `selectBalance` decides what to do without a
+ * reading.
  */
 async function fetchPrepaidInfo(ca: string, vendor: string): Promise<any | null> {
   try {
@@ -224,10 +230,10 @@ export async function fetchBalanceFromApi(caNumber: string): Promise<BalanceDeta
     fetchLastTransaction(ca),
   ]);
 
-  // Live AMISP reading first. The bill's own figure is only a fallback, and only
-  // when it is non-zero: prepaid connections always carry 0 there, so accepting
-  // it would show a confident ₹0.00 whenever the AMISP is silent — the one wrong
-  // answer that would push someone into recharging a meter that is already full.
+  // Throwing rather than returning an empty balance is deliberate: the caller
+  // writes `availableBalance` straight into the consumer's saved balance and
+  // compares it to decide whether a recharge landed, so an empty value would
+  // erase the last known figure and could report a payment as confirmed.
   const balanceRaw = selectBalance(prepaid, bill);
   if (!balanceRaw) {
     throw new Error('The meter has not reported a balance yet. Please try again shortly.');
