@@ -83,7 +83,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'sm:max-w-m
         }}
       >
         <div role="dialog" aria-modal="true" className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-          <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-10">
+          <div className="px-6 py-5 md:py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-10">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white font-sans">{title}</h2>
             <button
               onClick={onClose}
@@ -94,7 +94,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'sm:max-w-m
           </div>
           {/* overflow-y-auto stays: no-scrollbar only hides the bar, it does
               not change how the panel scrolls. */}
-          <div className="p-6 overflow-y-auto no-scrollbar">
+          <div className="p-6 md:p-5 overflow-y-auto no-scrollbar">
             {children}
           </div>
         </div>

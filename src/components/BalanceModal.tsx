@@ -75,7 +75,14 @@ export function BalanceModal({
   const portalUrl = `https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill`;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={mode === 'recharge' ? 'Recharge Details' : 'Balance Details'}>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={mode === 'recharge' ? 'Recharge Details' : 'Balance Details'}
+      /* Wider from md up so the recharge form fits inside 90vh without
+         scrolling on a laptop; the phone width is unchanged. */
+      maxWidth="sm:max-w-md md:max-w-2xl"
+    >
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
           <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
@@ -83,7 +90,7 @@ export function BalanceModal({
           <p className="text-gray-500 dark:text-gray-400 text-sm">Please wait while we securely connect to SBPDCL.</p>
         </div>
       ) : details ? (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+        <div className="space-y-4 md:space-y-3 animate-in fade-in slide-in-from-bottom-4">
 
           {/* ── Cached-data notice (PWA only) ── */}
           {isCached && (
@@ -113,7 +120,7 @@ export function BalanceModal({
           </div>
 
           {/* Current Balance & Status */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl p-4 shadow-sm flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 text-xs mb-1 font-medium uppercase tracking-wider">
                 <CreditCard size={14} /> Balance
@@ -143,27 +150,27 @@ export function BalanceModal({
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Last Recharge Info */}
-          {details.lastRechargeDate !== 'N/A' && (
-            <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl p-4 shadow-sm space-y-3">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                  <Calendar size={16} className="text-gray-400" />
-                  <span className="font-medium">Last Recharge</span>
+            {/* Sits in the same grid as Balance and Status: on desktop that
+                is one row of three instead of a row plus a stacked card, which
+                is most of the height saved. */}
+            {details.lastRechargeDate !== 'N/A' && (
+              <div className="col-span-2 md:col-span-1 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 text-xs mb-1 font-medium uppercase tracking-wider">
+                  <Calendar size={14} /> Last Recharge
                 </div>
-                <div className="text-right">
-                  <div className="font-bold text-gray-900 dark:text-white">{details.lastRechargeAmount}</div>
+                <div>
+                  <div className="text-base font-bold text-gray-900 dark:text-white">{details.lastRechargeAmount}</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{details.lastRechargeDate}</div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
 
           {/* Recharge Section */}
           {mode === 'recharge' && (
-            <div className="bg-white dark:bg-slate-800 border-2 border-primary-100 dark:border-slate-700 rounded-xl p-4 shadow-sm space-y-4">
+            <div className="bg-white dark:bg-slate-800 border-2 border-primary-100 dark:border-slate-700 rounded-xl p-4 md:p-3.5 shadow-sm space-y-4 md:space-y-3">
               <div>
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">
                   Amount to Pay
