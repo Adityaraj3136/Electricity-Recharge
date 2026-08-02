@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One entry, because the app is a single page. The About, Help and Settings
+  screens are modals over the same URL rather than separate routes, so there is
+  nothing else to list. Adding invented URLs would just generate 404s.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://adityaraj3136.github.io/Electricity-Recharge/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

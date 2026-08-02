@@ -19,14 +19,14 @@ interface AboutModalProps {
 const STORED = {
   en: [
     ['sbpdcl_consumers', 'The meters you saved — CA number, nickname, mobile number, and the last balance fetched.'],
-    ['app_settings', 'Your preferences: theme, text size, low-balance alerts, biometric lock.'],
+    ['sbpdcl_settings', 'Your preferences: theme, text size, low-balance alerts, biometric lock.'],
     ['app_lang', 'Whether you chose English or Hindi.'],
     ['onboarding_done_v1', 'Whether the intro screens have been seen.'],
     ['pwa_prompt_dismissed', 'Whether you dismissed the "install app" prompt.'],
   ],
   hi: [
     ['sbpdcl_consumers', 'आपके सहेजे गए मीटर — CA नंबर, नाम, मोबाइल नंबर और अंतिम प्राप्त बैलेंस।'],
-    ['app_settings', 'आपकी पसंद: थीम, टेक्स्ट का आकार, कम बैलेंस अलर्ट, बायोमेट्रिक लॉक।'],
+    ['sbpdcl_settings', 'आपकी पसंद: थीम, टेक्स्ट का आकार, कम बैलेंस अलर्ट, बायोमेट्रिक लॉक।'],
     ['app_lang', 'आपने अंग्रेज़ी चुनी या हिंदी।'],
     ['onboarding_done_v1', 'परिचय स्क्रीन देखी गई या नहीं।'],
     ['pwa_prompt_dismissed', 'आपने "ऐप इंस्टॉल करें" सूचना बंद की या नहीं।'],

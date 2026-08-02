@@ -7,10 +7,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
 
     <!-- Primary meta -->
-    <title>Bijli Recharge — SBPDCL Prepaid Meter</title>
-    <meta name="description" content="Quickly recharge SBPDCL prepaid electricity meters for your family. Fast, secure, and reliable." />
-    <meta name="keywords" content="SBPDCL, bijli recharge, electricity bill, prepaid meter, Bihar electricity" />
+    <title>Bijli Recharge — Check Balance & Recharge SBPDCL Prepaid Meters</title>
+    <meta
+      name="description"
+      content="Check the live balance on your SBPDCL prepaid electricity meter and recharge it in a few taps. Save several meters for the family, get low-balance alerts, and pay on SBPDCL's own gateway. Free, no account needed."
+    />
     <meta name="author" content="Aditya" />
+
+    <!--
+      Crawling. `index, follow` is the default, but stating it leaves no doubt,
+      and the max-* directives let Google show a full snippet and a large image
+      rather than truncating to its conservative defaults.
+    -->
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <link rel="canonical" href="https://adityaraj3136.github.io/Electricity-Recharge/" />
+
+    <!-- Open Graph (WhatsApp, Facebook, LinkedIn, Telegram) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Bijli Recharge" />
+    <meta property="og:url" content="https://adityaraj3136.github.io/Electricity-Recharge/" />
+    <meta property="og:title" content="Bijli Recharge — Check Balance & Recharge SBPDCL Prepaid Meters" />
+    <meta
+      property="og:description"
+      content="Check the live balance on your SBPDCL prepaid electricity meter and recharge it in a few taps. Free, no account needed."
+    />
+    <!-- Absolute by necessity: crawlers and chat apps do not resolve relative og:image. -->
+    <meta property="og:image" content="https://adityaraj3136.github.io/Electricity-Recharge/hero-illustration.jpg" />
+    <meta property="og:image:width" content="1376" />
+    <meta property="og:image:height" content="768" />
+    <meta property="og:image:alt" content="Bijli Recharge — SBPDCL prepaid meter balance and recharge" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:locale:alternate" content="hi_IN" />
+
+    <!-- Twitter/X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Bijli Recharge — Check Balance & Recharge SBPDCL Prepaid Meters" />
+    <meta
+      name="twitter:description"
+      content="Check the live balance on your SBPDCL prepaid electricity meter and recharge it in a few taps. Free, no account needed."
+    />
+    <meta name="twitter:image" content="https://adityaraj3136.github.io/Electricity-Recharge/hero-illustration.jpg" />
 
     <!-- Theme colour (blue = app header colour) -->
     <meta name="theme-color" content="#2563eb" />
@@ -31,6 +67,34 @@
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/webp" sizes="96x96" href="/icons/icon-96.webp" />
+
+    <!--
+      Structured data. The app renders client-side, so a crawler's first pass
+      sees an empty #root; this describes what the page is without depending on
+      that render finishing.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Bijli Recharge",
+        "url": "https://adityaraj3136.github.io/Electricity-Recharge/",
+        "description": "Check the live balance on your SBPDCL prepaid electricity meter and recharge it in a few taps. Save several meters for the family and get low-balance alerts.",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Android, Web",
+        "inLanguage": ["en-IN", "hi-IN"],
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+        "author": { "@type": "Person", "name": "Aditya" },
+        "featureList": [
+          "Live SBPDCL prepaid balance",
+          "Recharge through SBPDCL's own payment gateway",
+          "Multiple meters for one household",
+          "Low-balance alerts",
+          "Works offline for saved balances"
+        ]
+      }
+    </script>
 
     <!-- Prevent FOUC on dark mode -->
     <script>
