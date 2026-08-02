@@ -33,6 +33,26 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'sm:max-w-m
     }
   }, [isOpen]);
 
+  /**
+   * Escape closes the modal.
+   *
+   * Bound only while open, and it calls the same onClose the ✕ button does --
+   * which matters for the payment modal, whose onClose deliberately refuses to
+   * close mid-payment. Escape must not be a way around that guard.
+   *
+   * keydown on document rather than on the panel: the panel does not hold focus
+   * until something inside it is focused, so a listener there would miss the
+   * key right after opening.
+   */
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
+
   useEffect(() => {
     return () => { 
       const count = parseInt(document.body.getAttribute('data-modal-count') || '1', 10) - 1;
@@ -62,7 +82,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'sm:max-w-m
           opacity: visible ? 1 : 0,
         }}
       >
-        <div className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div role="dialog" aria-modal="true" className="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
           <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-10">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white font-sans">{title}</h2>
             <button

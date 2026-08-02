@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import type { BalanceDetails } from '../types';
@@ -29,6 +29,7 @@ export function BalanceModal({
 }: BalanceModalProps) {
   const [payAmount, setPayAmount] = useState('');
   const [amountError, setAmountError] = useState('');
+  const amountRef = useRef<HTMLInputElement>(null);
 
   // Reset field when modal opens/closes
   useEffect(() => {
@@ -40,6 +41,22 @@ export function BalanceModal({
       setAmountError('');
     }
   }, [isOpen, details, defaultAmount]);
+
+  /**
+   * Put the cursor in the amount box as soon as there is one to focus.
+   *
+   * Gated on `details` and `!isLoading` because the input is not mounted until
+   * the balance has arrived — focusing before that is a no-op, and the effect
+   * would not run again once it appeared.
+   */
+  useEffect(() => {
+    if (!isOpen || mode !== 'recharge' || isLoading || !details) return;
+    const id = requestAnimationFrame(() => {
+      amountRef.current?.focus();
+      amountRef.current?.select();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isOpen, mode, isLoading, details]);
 
   const handleAmountChange = (val: string) => {
     const digits = val.replace(/[^0-9]/g, '');
@@ -156,11 +173,20 @@ export function BalanceModal({
                     <IndianRupee size={18} className="text-gray-400" />
                   </div>
                   <input
+                    ref={amountRef}
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     value={payAmount}
                     onChange={(e) => handleAmountChange(e.target.value)}
+                    // Enter pays. The input is not inside a <form>, so there is
+                    // no implicit submit to rely on. Guarded on isAmountValid so
+                    // Enter can never start a payment the button would refuse.
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return;
+                      e.preventDefault();
+                      if (isAmountValid) onRecharge?.(payAmount);
+                    }}
                     className={`block w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-900 border rounded-xl text-lg font-bold text-gray-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all outline-none ${
                       amountError ? 'border-red-400 focus:ring-red-400 focus:border-red-400' : 'border-gray-200 dark:border-slate-600'
                     }`}
@@ -190,6 +216,9 @@ export function BalanceModal({
                 disabled={!isAmountValid}
               >
                 Proceed to Pay
+                <kbd className="hidden md:inline ml-1.5 text-[10px] font-sans opacity-70 border border-white/40 rounded px-1 py-0.5">
+                  Enter
+                </kbd>
               </Button>
             )}
           </div>
