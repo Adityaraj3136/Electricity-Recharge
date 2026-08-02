@@ -20,7 +20,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
       <div className="space-y-6 pt-2">
         {/* Contact Info */}
         <section>
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
             {lang === 'en' ? 'Contact Us' : 'संपर्क करें'}
           </h3>
           <div className={`${sectionBg} rounded-xl p-4 space-y-3`}>
@@ -43,7 +43,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
 
         {/* FAQs */}
         <section>
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
             {lang === 'en' ? 'Frequently Asked Questions' : 'अक्सर पूछे जाने वाले प्रश्न'}
           </h3>
           <div className="space-y-3">

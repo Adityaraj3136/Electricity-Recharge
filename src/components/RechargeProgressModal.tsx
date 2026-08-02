@@ -41,14 +41,14 @@ export function RechargeProgressModal({ isOpen, onClose, progress }: RechargePro
                 ) : isError ? (
                   <XCircle size={20} className="text-red-500" />
                 ) : (
-                  <div className="w-2 h-2 rounded-full bg-gray-200" />
+                  <div className="w-2 h-2 rounded-full bg-gray-200 dark:bg-slate-600" />
                 )}
               </div>
               <span className={`text-sm font-medium ${
-                isCompleted ? 'text-green-700' : 
-                isCurrent ? 'text-blue-700' : 
-                isError ? 'text-red-700' : 
-                'text-gray-400'
+                isCompleted ? 'text-green-700 dark:text-green-400' : 
+                isCurrent ? 'text-blue-700 dark:text-blue-400' : 
+                isError ? 'text-red-700 dark:text-red-400' : 
+                'text-gray-400 dark:text-gray-500'
               }`}>
                 {step}
               </span>
@@ -57,10 +57,10 @@ export function RechargeProgressModal({ isOpen, onClose, progress }: RechargePro
         })}
 
         {progress.error && (
-          <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-xl">
-            <h4 className="text-red-800 font-semibold mb-1">Automation Error</h4>
-            <p className="text-red-600 text-sm">{progress.error}</p>
-            <p className="text-gray-500 text-xs mt-2">
+          <div className="mt-6 p-4 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/30 rounded-xl">
+            <h4 className="text-red-800 dark:text-red-300 font-semibold mb-1">Automation Error</h4>
+            <p className="text-red-600 dark:text-red-400 text-sm">{progress.error}</p>
+            <p className="text-gray-500 dark:text-gray-400 text-xs mt-2">
               You can complete the payment manually in the opened tab.
             </p>
           </div>

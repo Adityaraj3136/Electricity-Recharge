@@ -1449,10 +1449,10 @@ export function Home() {
             {(payment.status === 'starting' || payment.status === 'checking') && (
               <>
                 <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto" />
-                <p className="font-semibold text-gray-900">
+                <p className="font-semibold text-gray-900 dark:text-white">
                   {payment.status === 'starting' ? 'Setting up your payment…' : 'Checking your new balance…'}
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {payment.status === 'starting'
                     ? `₹${payment.amount} for ${payment.consumer.name}`
                     : 'One moment while we confirm with SBPDCL.'}
@@ -1465,8 +1465,8 @@ export function Home() {
                 <div className="w-14 h-14 bg-primary-50 rounded-full flex items-center justify-center mx-auto">
                   <CreditCard size={26} className="text-primary-600" />
                 </div>
-                <p className="font-semibold text-gray-900">Complete your ₹{payment.amount} payment</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-semibold text-gray-900 dark:text-white">Complete your ₹{payment.amount} payment</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   The payment window is open. Banks don't allow their payment pages
                   to run inside another site, so it opens separately.
                 </p>
@@ -1474,7 +1474,7 @@ export function Home() {
                     JSON body, so the payment window ends on a blank page whether the
                     payment succeeded or was cancelled. It is cross-origin, so this page
                     cannot detect that and close it — say so, and give a button that does. */}
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 dark:text-gray-500">
                   When the bank finishes, that window ends on a blank white page —
                   that's normal. Come back here and tap below.
                 </p>
@@ -1501,11 +1501,11 @@ export function Home() {
 
             {payment.status === 'blocked' && (
               <>
-                <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto">
+                <div className="w-14 h-14 bg-amber-50 dark:bg-amber-500/15 rounded-full flex items-center justify-center mx-auto">
                   <Shield size={26} className="text-amber-500" />
                 </div>
-                <p className="font-semibold text-gray-900">Your browser blocked the payment window</p>
-                <p className="text-sm text-gray-500">Allow popups for this site, or open it manually below.</p>
+                <p className="font-semibold text-gray-900 dark:text-white">Your browser blocked the payment window</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Allow popups for this site, or open it manually below.</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -1527,17 +1527,17 @@ export function Home() {
                 {/* Only a changed balance proves the payment went through. A
                     cancelled payment also lands here, so nothing is called
                     successful without evidence. */}
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto ${payment.confirmed ? 'bg-green-50' : 'bg-amber-50'}`}>
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto ${payment.confirmed ? 'bg-green-50 dark:bg-green-500/15' : 'bg-amber-50 dark:bg-amber-500/15'}`}>
                   <Activity size={26} className={payment.confirmed ? 'text-green-600' : 'text-amber-500'} />
                 </div>
-                <p className="font-semibold text-gray-900">
+                <p className="font-semibold text-gray-900 dark:text-white">
                   {payment.confirmed
                     ? `Recharge confirmed — balance is now ${payment.newBalance}`
                     : payment.newBalance
                       ? `Balance unchanged (${payment.newBalance})`
                       : 'Payment window closed'}
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {payment.confirmed
                     ? 'Your meter has been credited.'
                     : payment.newBalance
@@ -1549,11 +1549,11 @@ export function Home() {
 
             {payment.status === 'error' && (
               <>
-                <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto">
+                <div className="w-14 h-14 bg-red-50 dark:bg-red-500/15 rounded-full flex items-center justify-center mx-auto">
                   <Shield size={26} className="text-red-500" />
                 </div>
-                <p className="font-semibold text-gray-900">Could not start the recharge</p>
-                <p className="text-sm text-gray-500">{payment.error}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">Could not start the recharge</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{payment.error}</p>
               </>
             )}
 
