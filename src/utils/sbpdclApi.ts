@@ -18,6 +18,7 @@
 import CryptoJS from 'crypto-js';
 import { JSEncrypt } from 'jsencrypt';
 import type { BalanceDetails } from '../types';
+import { pick, selectBalance } from './sbpdclFields';
 
 const API_BASE = 'https://wss.sbpdcl.co.in/fgweb/web/';
 const CONFIG_URL = API_BASE + 'json/plugin/com.fluentgrid.cp.api.CPCommonConfigService/service';
@@ -124,19 +125,6 @@ function unwrap(response: any): any {
   return data;
 }
 
-/** Case- and separator-insensitive field lookup, since key casing varies by endpoint. */
-function pick(source: any, ...names: string[]): string {
-  if (!source || typeof source !== 'object') return '';
-  const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const entries = Object.entries(source);
-  for (const name of names) {
-    const target = normalise(name);
-    const hit = entries.find(([key]) => normalise(key) === target);
-    if (hit && hit[1] != null && String(hit[1]).trim() !== '') return String(hit[1]).trim();
-  }
-  return '';
-}
-
 function formatRupees(value: string): string {
   if (!value) return '';
   const amount = parseFloat(value.replace(/[^0-9.-]/g, ''));
@@ -188,6 +176,34 @@ async function fetchLastTransaction(ca: string): Promise<any | null> {
   }
 }
 
+/**
+ * Live prepaid balance, read from the meter's AMISP rather than from the bill.
+ *
+ * `fetchBillDetails` also carries a `prepaidBalance`, but that is a *billing*
+ * figure and reads 0 on prepaid connections — using it is what made the app
+ * report a balance of ₹0.00 for every prepaid meter. The portal's own dashboard
+ * calls this endpoint instead (`getBiharCisPrepaidAvailableBalance`) and reads
+ * `current_balance`.
+ *
+ * Best-effort: the AMISP is a third party and answers "-" when it has no live
+ * reading, in which case the caller falls back to the bill figure.
+ */
+async function fetchPrepaidInfo(ca: string, vendor: string): Promise<any | null> {
+  try {
+    const response = await callAction({
+      action: 'fgexternal/rest/AMISP/getConsumerPrepaidRechargeInfo',
+      method: 'POST',
+      // "vendoerName" is misspelt in the portal's API — it must match exactly.
+      req: { consumerNo: ca, vendoerName: vendor || 'NA' },
+      auth: 'TOKEN',
+      baseUrlName: '',
+    });
+    return unwrap(response) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** "2026-07-28 16:55:08.0" → "28/07/2026" */
 function formatTransactionDate(raw: string): string {
   const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -200,13 +216,27 @@ function formatTransactionDate(raw: string): string {
  */
 export async function fetchBalanceFromApi(caNumber: string): Promise<BalanceDetails> {
   const ca = normaliseCa(caNumber);
-  const [bill, lastTxn] = await Promise.all([fetchBillDetails(ca), fetchLastTransaction(ca)]);
+  const bill = await fetchBillDetails(ca);
+  // The AMISP lookup keys off the vendor named on the bill, so it can only run
+  // once the bill is in hand.
+  const [prepaid, lastTxn] = await Promise.all([
+    fetchPrepaidInfo(ca, pick(bill, 'vendor', 'vendorName', 'amispName')),
+    fetchLastTransaction(ca),
+  ]);
 
-  const balanceRaw = pick(bill, 'prepaidBalance', 'availableBalance', 'AVAIL_BALANCE');
-  if (!balanceRaw) throw new Error('No balance returned for this CA number.');
+  // Live AMISP reading first. The bill's own figure is only a fallback, and only
+  // when it is non-zero: prepaid connections always carry 0 there, so accepting
+  // it would show a confident ₹0.00 whenever the AMISP is silent — the one wrong
+  // answer that would push someone into recharging a meter that is already full.
+  const balanceRaw = selectBalance(prepaid, bill);
+  if (!balanceRaw) {
+    throw new Error('The meter has not reported a balance yet. Please try again shortly.');
+  }
 
-  const txnDate = lastTxn ? pick(lastTxn, 'CollectionDate') : '';
-  const txnAmount = lastTxn ? pick(lastTxn, 'Amount') : '';
+  // The AMISP reports the recharge the meter actually saw; the payment table
+  // only knows what the portal collected, so prefer the former.
+  const txnDate = pick(prepaid, 'lastRechargeDate') || (lastTxn ? pick(lastTxn, 'CollectionDate') : '');
+  const txnAmount = pick(prepaid, 'lastRechargeAmount') || (lastTxn ? pick(lastTxn, 'Amount') : '');
 
   return {
     caNumber: pick(bill, 'scno') || ca,
@@ -216,9 +246,9 @@ export async function fetchBalanceFromApi(caNumber: string): Promise<BalanceDeta
     lastRechargeDate: txnDate ? formatTransactionDate(txnDate) : 'N/A',
     lastRechargeAmount: txnAmount ? formatRupees(txnAmount) : 'N/A',
     consumerType: pick(bill, 'consumerType'),
-    currentStatus: pick(bill, 'connectionStatus') || 'N/A',
+    currentStatus: pick(prepaid, 'connection_status') || pick(bill, 'connectionStatus') || 'N/A',
     availableBalance: formatRupees(balanceRaw),
-    amispVendor: pick(bill, 'vendor', 'amispName'),
+    amispVendor: pick(prepaid, 'vendor') || pick(bill, 'vendor', 'amispName'),
   };
 }
 
