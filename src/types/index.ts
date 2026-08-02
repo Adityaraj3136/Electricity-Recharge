@@ -7,6 +7,10 @@ export interface Consumer {
   preferredGateway?: 'Bank of Baroda' | 'Easebuzz' | 'HDFC';
   lastFetchedBalance?: string;
   lastFetchedDate?: string;
+  /** Epoch ms of the last successful fetch. lastFetchedDate is only a
+      dd/mm/yyyy string, too coarse to tell a five-minute-old balance from an
+      eight-hour-old one. */
+  lastFetchedAt?: number;
   currentStatus?: string;
 }
 

@@ -96,7 +96,19 @@ export function BalanceModal({
           {isCached && (
             <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 rounded-xl px-4 py-2.5 text-amber-700 dark:text-amber-300 text-xs font-medium">
               <Clock size={13} className="flex-shrink-0" />
-              Last saved balance — may not reflect latest recharge
+              <span className="flex-1">Last saved balance — may not reflect latest recharge</span>
+              {/* The way out of the cache. Balances are reused for a while
+                  rather than re-read on every open, so there has to be a
+                  visible way to insist on a live one. */}
+              {onRetry && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="flex items-center gap-1 shrink-0 font-semibold underline underline-offset-2 hover:no-underline"
+                >
+                  <RefreshCw size={12} /> Refresh
+                </button>
+              )}
             </div>
           )}
 

@@ -131,6 +131,20 @@ const AppLogo = ({ className = "" }: { className?: string }) => (
 );
 
 let globalSyncPromise: Promise<void> | null = null;
+
+/**
+ * How long a fetched balance is treated as current.
+ *
+ * A prepaid balance only moves when the meter consumes or a recharge lands, so
+ * re-reading it on every page load and every time a meter is opened was a
+ * request per glance for a number that had almost certainly not changed. Any
+ * action that could actually change it -- finishing a payment, pulling to
+ * refresh, pressing Refresh -- bypasses this.
+ */
+const BALANCE_TTL_MS = 15 * 60 * 1000;
+
+const isBalanceFresh = (c: Consumer): boolean =>
+  !!c.lastFetchedBalance && !!c.lastFetchedAt && Date.now() - c.lastFetchedAt < BALANCE_TTL_MS;
 const MIN_RECHARGE_AMOUNT = '100';
 
 // ─── PC Bookmarklet support ───────────────────────────────────────────────────
@@ -256,6 +270,9 @@ export function Home() {
   useEffect(() => {
     if (hasAutoSyncedRef.current || consumers.length === 0) return;
     hasAutoSyncedRef.current = true;
+    // Only if something is actually stale. This used to fire on every reload,
+    // so a refresh cost one request per meter for balances that had not moved.
+    if (consumers.every(isBalanceFresh)) return;
     const timer = setTimeout(() => syncAllMeters(), 2000); // let the UI paint first
     return () => clearTimeout(timer);
   }, [consumers]);
@@ -293,6 +310,7 @@ export function Home() {
         updateConsumer(payment.consumer.id, {
           lastFetchedBalance: details.availableBalance,
           lastFetchedDate: new Date().toLocaleDateString('en-GB'),
+          lastFetchedAt: Date.now(),
           currentStatus: details.currentStatus
         });
         setPayment(p => (p ? {
@@ -592,6 +610,7 @@ export function Home() {
             updateConsumer(consumer.id, {
               lastFetchedBalance: details.availableBalance,
               lastFetchedDate: new Date().toLocaleDateString('en-GB'),
+              lastFetchedAt: Date.now(),
               currentStatus: details.currentStatus
             });
             // Only a changed balance proves the payment landed. Anything else is
@@ -732,7 +751,32 @@ export function Home() {
     await fetchBalanceDetails(consumer);
   };
 
-  const fetchBalanceDetails = async (consumer: Consumer) => {
+  /**
+   * @param force Skip the freshness check. The modal's Refresh button and the
+   *   post-payment check pass this; simply opening a meter does not.
+   */
+  const fetchBalanceDetails = async (consumer: Consumer, force = false) => {
+    // A fresh balance is shown straight from storage. Opening a meter used to
+    // hit the network every time, which is the "fetches on every click" part.
+    if (!force && isBalanceFresh(consumer)) {
+      setIsBalanceOpen(true);
+      setBalanceError('');
+      setIsBalanceLoading(false);
+      setBalanceDetails({
+        caNumber:           consumer.caNumber,
+        name:               consumer.name,
+        division:           '',
+        subDivision:        '',
+        lastRechargeDate:   consumer.lastFetchedDate || 'N/A',
+        lastRechargeAmount: 'N/A',
+        consumerType:       '',
+        currentStatus:      consumer.currentStatus || 'N/A',
+        availableBalance:   consumer.lastFetchedBalance!,
+        amispVendor:        '',
+      });
+      return;
+    }
+
     const status = await Network.getStatus();
     if (!status.connected) { showToast(t.toast.offline, 'error'); return; }
 
@@ -771,6 +815,7 @@ export function Home() {
       updateConsumer(consumer.id, {
         lastFetchedBalance: details.availableBalance,
         lastFetchedDate: new Date().toLocaleDateString('en-GB'),
+        lastFetchedAt: Date.now(),
         currentStatus: details.currentStatus
       });
       checkAndNotifyLowBalance(details, consumer.name);
@@ -811,6 +856,7 @@ export function Home() {
       updateConsumer(consumer.id, {
         lastFetchedBalance: details.availableBalance,
         lastFetchedDate: new Date().toLocaleDateString('en-GB'),
+        lastFetchedAt: Date.now(),
         currentStatus: details.currentStatus
       });
       checkAndNotifyLowBalance(details, consumer.name);
@@ -819,20 +865,31 @@ export function Home() {
     }
   };
 
-  const syncAllMeters = async () => {
+  /**
+   * @param force Re-read every meter regardless of age. Set by the explicit
+   *   "Fetch Balances" button and pull-to-refresh, where asking for fresh data
+   *   is the whole point; left off by the background timer and first load.
+   */
+  const syncAllMeters = async (force = false) => {
     if (consumers.length === 0 || isSyncing) return;
+    const due = force ? consumers : consumers.filter(c => !isBalanceFresh(c));
+    if (due.length === 0) {
+      showToast(lang === 'en' ? 'Balances are up to date' : 'बैलेंस पहले से अद्यतन है', 'info');
+      return;
+    }
+
     setIsSyncing(true);
     showToast('Fetching balances in background...', 'info');
-    
+
     globalSyncPromise = (async () => {
-      for (const consumer of consumers) {
+      for (const consumer of due) {
         await fetchBalanceSilently(consumer);
       }
     })();
-    
+
     await globalSyncPromise;
     globalSyncPromise = null;
-    
+
     setIsSyncing(false);
     showToast('Fetch complete');
   };
@@ -873,7 +930,7 @@ export function Home() {
 
   return (
     <div
-      className={`min-h-screen ${bg} font-sans transition-colors duration-300`}
+      className={`min-h-screen flex flex-col ${bg} font-sans transition-colors duration-300`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -1028,7 +1085,7 @@ export function Home() {
       {/* ════════════════════════════════════════════════════════
           MAIN CONTENT
       ════════════════════════════════════════════════════════ */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-6 pb-28 md:pb-10 space-y-8">
+      <main className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-6 pb-28 md:pb-10 space-y-8 flex-1">
 
         {/* ════ METERS TAB VIEW ════ */}
         {activeTab === 'meters' && (
@@ -1043,7 +1100,7 @@ export function Home() {
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={syncAllMeters}
+                  onClick={() => syncAllMeters(true)}
                   disabled={isSyncing || consumers.length === 0}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold rounded-full text-xs active:scale-95 disabled:opacity-50 transition-all"
                 >
@@ -1195,7 +1252,7 @@ export function Home() {
             <h2 className={`text-lg font-bold ${textPrimary}`}>{t.home.savedMeters}</h2>
             <div className="flex items-center gap-4">
               <button
-                onClick={syncAllMeters}
+                onClick={() => syncAllMeters(true)}
                 disabled={isSyncing || consumers.length === 0}
                 className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold rounded-full text-xs hover:bg-blue-100 disabled:opacity-50 transition-all"
               >
@@ -1426,8 +1483,8 @@ export function Home() {
       {/* ════════════════════════════════════════════════════════
           DESKTOP FOOTER
       ════════════════════════════════════════════════════════ */}
-      <footer className={`hidden md:block border-t py-5 ${isDark ? 'bg-[#0a1120] border-[#253350]' : 'bg-white border-gray-100'}`}>
-        <div className="max-w-6xl mx-auto px-8 flex items-center justify-between">
+      <footer className={`hidden md:block shrink-0 mt-auto border-t py-5 ${isDark ? 'bg-[#0a1120] border-[#253350]' : 'bg-white border-gray-100'}`}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <AppLogo className="w-5 h-5 bg-primary-600 rounded-md" />
             <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{t.appName}</span>
@@ -1751,7 +1808,7 @@ export function Home() {
         defaultAmount={activeConsumer?.preferredAmount || ''}
         caNumber={activeConsumer?.caNumber}
         error={balanceError}
-        onRetry={activeConsumer ? () => fetchBalanceDetails(activeConsumer) : undefined}
+        onRetry={activeConsumer ? () => fetchBalanceDetails(activeConsumer, true) : undefined}
         isCached={!!(balanceDetails && activeConsumer?.lastFetchedBalance && balanceDetails.availableBalance === activeConsumer.lastFetchedBalance)}
         onRecharge={(amount) => {
           setIsBalanceOpen(false);
