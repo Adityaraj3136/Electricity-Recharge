@@ -4,7 +4,7 @@ export interface Consumer {
   caNumber: string;
   mobileNumber?: string;
   preferredAmount?: string;
-  preferredGateway?: 'Bank of Baroda' | 'Easebuzz' | 'HDFC';
+  preferredGateway?: 'Bank of Baroda' | 'Federal Bank' | 'HDFC';
   lastFetchedBalance?: string;
   lastFetchedDate?: string;
   currentStatus?: string;
@@ -15,6 +15,7 @@ export interface AppSettings {
   biometricLock: boolean;
   reminderEnabled: boolean;
   reminderDay: number;
+  fontSize: 'small' | 'medium' | 'large';
 }
 
 export type AutomationStep = 

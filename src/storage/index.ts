@@ -44,7 +44,8 @@ export const storage = {
       darkMode: false,
       biometricLock: false,
       reminderEnabled: false,
-      reminderDay: 1
+      reminderDay: 1,
+      fontSize: 'medium'
     };
     try {
       const data = localStorage.getItem(SETTINGS_KEY);

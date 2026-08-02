@@ -12,6 +12,23 @@ dist
 dist-ssr
 *.local
 
+# ── Signing secrets — never commit ──
+# The release key cannot be rotated: losing it blocks all future updates, and
+# leaking it lets anyone publish builds that look like yours.
+*.jks
+*.keystore
+android/keystore.properties
+!android/keystore.properties.example
+
+# Android build output / machine-specific paths
+android/build
+android/app/build
+android/capacitor-cordova-android-plugins/build
+android/.gradle
+android/local.properties
+*.apk
+build-output
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,4 +1,9 @@
-export const automationScript = `
+/**
+ * SBPDCL Automation Script — standalone bundle for PC bookmarklet use.
+ * Loaded by bookmarklets from GitHub Pages. Safe to load cross-origin.
+ * Auto-derived from src/automation/automation.ts — do not edit directly.
+ * Regenerate: node gen-bundle.cjs
+ */
 (function(window) {
   const TIMEOUT_MS = 12000;
   const GATEWAY_TIMEOUT_MS = 60000; // 60s for payment gateway to load after user confirms
@@ -145,7 +150,7 @@ export const automationScript = `
     // 1. Wait for confirmation modal to appear
     try {
       await waitForElement('button.btn-danger', [], 'Yes', 10000);
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Opening payment' }, '*');
+      _showToast('Opening payment…');
     } catch(e) {
       return true; // Modal didn't appear — proceed anyway
     }
@@ -244,24 +249,41 @@ export const automationScript = `
     throw new Error("Generate QR Code button not found");
   }
 
+
+  // ── Progress toast for PC bookmarklet users ────────────────────────────
+  function _showToast(msg, isErr) {
+    var t = document.getElementById('_bijli_bm_toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = '_bijli_bm_toast';
+      t.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#0f172a;border:2px solid #2563eb;color:#e2e8f0;padding:10px 22px;border-radius:99px;z-index:2147483647;font:600 13px/1.4 -apple-system,sans-serif;box-shadow:0 8px 32px rgba(0,0,0,.5);pointer-events:none;transition:opacity .3s;white-space:nowrap;max-width:90vw;text-align:center';
+      document.body.appendChild(t);
+    }
+    t.style.borderColor = isErr ? '#dc2626' : '#2563eb';
+    t.textContent = (isErr ? '\u274c ' : '\u26a1 ') + msg;
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function(){ t.style.opacity='0'; }, isErr ? 8000 : 5000);
+  }
+
   // ── MAIN ──────────────────────────────────────────────────────────────────
   window.startSbpdclAutomation = async function(config) {
     try {
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Filling CA Number' }, '*');
+      _showToast('Filling CA Number…');
       await fillCANumber(config.caNumber);
 
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Searching' }, '*');
+      _showToast('Searching…');
       await clickSearch();
 
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Loading consumer' }, '*');
+      _showToast('Loading consumer…');
       await waitForConsumer();
 
       // 1. Fill Mobile Number (Compulsory)
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Filling mobile' }, '*');
+      _showToast('Filling mobile…');
       await fillMobile(config.mobileNumber || '9999999999');
 
       // 2. Select Gateway (Compulsory to enable Pay Now)
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting gateway' }, '*');
+      _showToast('Selecting gateway…');
       
       try {
         await waitForElement('mat-radio-button', [], '', 5000); // Wait for gateway options to render
@@ -301,7 +323,7 @@ export const automationScript = `
       }
 
       // 3. Select Amount — do this AFTER gateway to avoid Angular re-validating and clearing amount
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting amount' }, '*');
+      _showToast('Selecting amount…');
       if (config.amount) {
         await selectAmount(config.amount);
         // Verify the amount is actually filled — retry up to 3 times if not
@@ -332,7 +354,7 @@ export const automationScript = `
       }
 
       // 4. Open Payment — only click after confirming page is ready (Pay Now not disabled)
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Opening payment' }, '*');
+      _showToast('Opening payment…');
       // Wait until Pay Now button is enabled (not disabled)
       await new Promise(resolve => {
         const deadline = Date.now() + 8000;
@@ -356,7 +378,7 @@ export const automationScript = `
       }
 
       // Wait for Juspay payment gateway to load
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Selecting gateway' }, '*');
+      _showToast('Selecting gateway…');
       const upiEl = await waitForPaymentGateway();
 
       // Check if "Pay by any UPI app" is already visible on screen
@@ -384,7 +406,7 @@ export const automationScript = `
       }
 
       if (await clickPayByUpiApp()) {
-        window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Done' }, '*');
+        _showToast('Done…');
         return;
       }
 
@@ -393,7 +415,7 @@ export const automationScript = `
       await wait(1000);
       
       if (await clickPayByUpiApp()) {
-        window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Done' }, '*');
+        _showToast('Done…');
         return;
       }
 
@@ -401,8 +423,9 @@ export const automationScript = `
       await wait(500);
       await clickGenerateQR();
 
-      window.postMessage({ type: 'SBPDCL_PROGRESS', step: 'Done' }, '*');
+      _showToast('Done…');
     } catch (error) {
+      _showToast(error.message, true);
       window.postMessage({ type: 'SBPDCL_ERROR', error: error.message }, '*');
     }
   };
@@ -546,4 +569,3 @@ export const automationScript = `
     }
   };
 })(window);
-`;

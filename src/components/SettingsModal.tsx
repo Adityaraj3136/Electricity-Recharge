@@ -8,8 +8,8 @@ import {
   ChevronRight, Lock, Bell, BellOff, AlertTriangle, CheckCircle2, Type, Trash2
 } from 'lucide-react';
 import { useLang } from '../hooks/useLang';
-import { LocalNotifications } from '@capacitor/local-notifications';
-import { NativeBiometric } from '@capgo/capacitor-native-biometric';
+// LocalNotifications and NativeBiometric are dynamically imported inside their
+// respective functions to avoid crashing on web/PWA where native plugins are unavailable.
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -27,7 +27,8 @@ const isNative = (): boolean => {
  */
 async function ensureNotificationChannel() {
   try {
-    await LocalNotifications.createChannel({
+    const { LocalNotifications: LN } = await import('@capacitor/local-notifications');
+    await LN.createChannel({
       id: 'bijli_reminder',
       name: 'Low Balance Reminder',
       description: 'Low balance reminder notifications',
@@ -51,10 +52,11 @@ async function ensureNotificationChannel() {
  */
 async function requestNotificationPermission(): Promise<boolean> {
   try {
-    const current = await LocalNotifications.checkPermissions();
+    const { LocalNotifications: LN } = await import('@capacitor/local-notifications');
+    const current = await LN.checkPermissions();
     if (current.display === 'granted') return true;
 
-    const result = await LocalNotifications.requestPermissions();
+    const result = await LN.requestPermissions();
     return result.display === 'granted';
   } catch (e) {
     console.warn('Notification permission error:', e);
@@ -83,10 +85,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [showContactModal, setShowContactModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
 
-  // Check current permission state when the modal opens
+  // Check current permission state when the modal opens — native only
   useEffect(() => {
     if (!isOpen || !isNative()) return;
-    LocalNotifications.checkPermissions()
+    import('@capacitor/local-notifications')
+      .then(({ LocalNotifications: LN }) => LN.checkPermissions())
       .then(r => setNotifStatus(r.display === 'granted' ? 'granted' : 'idle'))
       .catch(() => {});
   }, [isOpen]);
@@ -98,6 +101,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const toggleBiometric = async () => {
     if (!settings.biometricLock) {
       try {
+        const { NativeBiometric } = await import('@capgo/capacitor-native-biometric');
         const { isAvailable } = await NativeBiometric.isAvailable();
         if (!isAvailable) {
           alert('Biometric authentication is not available on this device. [ERR_SEC_01]');

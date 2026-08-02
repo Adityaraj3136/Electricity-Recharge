@@ -17,11 +17,16 @@ import {
 import { SettingsModal } from '../components/SettingsModal';
 import { BalanceModal } from '../components/BalanceModal';
 import { HelpModal } from '../components/HelpModal';
-import { automationScript } from '../automation/automation';
 import { Network } from '@capacitor/network';
-import { sanitizeText, sanitizeNumber } from '../utils/sanitize';
+import { sanitizeText, sanitizeNumber, sanitizeForScript } from '../utils/sanitize';
+import { routePaymentWindowUrl } from '../utils/paymentWindowRouting';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { App } from '@capacitor/app';
+
+// ─── Native platform guard ────────────────────────────────────────────────────
+const isNative = (): boolean => {
+  try { return !!(window as any).Capacitor?.isNativePlatform?.(); } catch { return false; }
+};
 
 // ─── Avatar colour palette ─────────────────────────────────────────────────
 const AVATAR_GRADIENTS = [
@@ -44,6 +49,36 @@ const AppLogo = ({ className = "" }: { className?: string }) => (
 
 let globalSyncPromise: Promise<void> | null = null;
 const MIN_RECHARGE_AMOUNT = '100';
+
+// ─── PC Bookmarklet support ───────────────────────────────────────────────────
+// The automation script is hosted on GitHub Pages and loaded dynamically by
+// bookmarklets so they can run on the SBPDCL portal without CORS restrictions.
+const GITHUB_PAGES_SCRIPT_URL = 'https://adityaraj3136.github.io/Electricity-Recharge/sbpdcl-automation.js';
+
+function generateBookmarklet(consumer: Consumer, overrideAmount?: string): string {
+  const ca       = sanitizeForScript(consumer.caNumber);
+  const mobile   = sanitizeForScript(consumer.mobileNumber   || '');
+  const amount   = sanitizeForScript(overrideAmount ?? consumer.preferredAmount ?? '');
+  const gateway  = sanitizeForScript(consumer.preferredGateway || 'HDFC');
+  const url      = GITHUB_PAGES_SCRIPT_URL;
+  // Compact IIFE that dynamically loads the script from GitHub Pages then calls automation
+  const code = [
+    '(function(){',
+    "var s=document.createElement('script');",
+    `s.src='${url}?t='+Date.now();`,
+    's.onload=function(){',
+    "if(typeof window.startSbpdclAutomation==='function'){",
+    `window.startSbpdclAutomation({caNumber:'${ca}',mobileNumber:'${mobile}',amount:'${amount}',gateway:'${gateway}'});`,
+    "}else{alert('Automation script not ready. Try again in 2 seconds.');}",
+    '};',
+    "s.onerror=function(){alert('Failed to load automation script. Please check your internet connection.');};",
+    'document.head.appendChild(s);',
+    '})();',
+  ].join('');
+  return 'javascript:' + encodeURIComponent(code);
+}
+
+
 
 // ─── Component ─────────────────────────────────────────────────────────────
 export function Home() {
@@ -71,16 +106,29 @@ export function Home() {
   const [balanceModalMode, setBalanceModalMode] = useState<'view' | 'recharge'>('view');
   const [activeConsumer, setActiveConsumer] = useState<Consumer | null>(null);
   const [activeTab, setActiveTab] = useState<'home' | 'meters'>('home');
-  const [iframeConsumer, setIframeConsumer] = useState<Consumer | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [isRecharging, setIsRecharging] = useState(false);
+  // Web-only payment flow. The gateway refuses to be framed (X-Frame-Options),
+  // so it runs in a separate window while this modal keeps the user in the app
+  // and reports what happens.
+  const [payment, setPayment] = useState<{
+    consumer: Consumer;
+    amount: number;
+    url: string;
+    status: 'starting' | 'paying' | 'blocked' | 'checking' | 'done' | 'error';
+    error?: string;
+    newBalance?: string;
+    balanceBefore?: string | null;
+    confirmed?: boolean;
+  } | null>(null);
+  const payWindowRef = useRef<Window | null>(null);
+
 
   // Per-field form errors
   const [formErrors, setFormErrors] = useState<{ name?: string; caNumber?: string; mobile?: string; amount?: string }>({});
 
   // Pull-to-refresh — only active on home tab, not during automation or payment
-  const isAutomating = !!iframeConsumer;
   const { isPulling, isRefreshing, pullProgress, handleTouchStart, handleTouchMove, handleTouchEnd } = usePullToRefresh({
-    enabled: activeTab === 'home' && !isAutomating && !isBalanceLoading,
+    enabled: activeTab === 'home' && !isBalanceLoading && !payment,
     onRefresh: useCallback(async () => {
       setSessionBalances({});
       refreshConsumers();
@@ -88,16 +136,19 @@ export function Home() {
     }, [refreshConsumers]),
   });
 
-  // Background Task Listener to keep fetching alive when minimized
+  // Background Task Listener to keep fetching alive when minimized — native only
   useEffect(() => {
+    if (!isNative()) return;
     const listener = App.addListener('appStateChange', async ({ isActive }) => {
       if (!isActive && globalSyncPromise) {
         try {
           const { BackgroundTask } = await import('@capawesome/capacitor-background-task');
-          let taskId: string;
-          taskId = await BackgroundTask.beforeExit(async () => {
+          // Use a wrapper to avoid race condition where taskId is referenced
+          // inside the callback before the outer await resolves.
+          const taskRef = { id: '' };
+          taskRef.id = await BackgroundTask.beforeExit(async () => {
             await globalSyncPromise;
-            BackgroundTask.finish({ taskId });
+            BackgroundTask.finish({ taskId: taskRef.id });
           });
         } catch (e) {
           // Plugin not available or web
@@ -108,6 +159,67 @@ export function Home() {
       listener.then(l => l.remove());
     };
   }, []);
+
+  // Auto-sync on first load, on every platform — fetches live balances for all meters.
+  // Consumers arrive from storage a render after mount, so this waits for them
+  // rather than firing once on an empty list, and the ref keeps it to one run.
+  const hasAutoSyncedRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoSyncedRef.current || consumers.length === 0) return;
+    hasAutoSyncedRef.current = true;
+    const timer = setTimeout(() => syncAllMeters(), 2000); // let the UI paint first
+    return () => clearTimeout(timer);
+  }, [consumers]);
+
+  // Periodic background sync every 30 mins
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (consumers.length > 0 && !isSyncing) syncAllMeters();
+    }, 30 * 60 * 1000); // 30 minutes
+    return () => clearInterval(interval);
+  }, [consumers, isSyncing]);
+
+  // Watch the payment window. It is cross-origin so its contents are unreadable —
+  // closing is the only observable signal, and it means the user is done (paid or
+  // abandoned), so re-fetch the balance to find out which.
+  useEffect(() => {
+    if (payment?.status !== 'paying') return;
+    const timer = setInterval(async () => {
+      const win = payWindowRef.current;
+      if (!win || !win.closed) return;
+      clearInterval(timer);
+      payWindowRef.current = null;
+      setPayment(p => (p ? { ...p, status: 'checking' } : p));
+      try {
+        const { fetchBalanceFromApi } = await import('../utils/sbpdclApi');
+        const details = await fetchBalanceFromApi(payment.consumer.caNumber);
+        setSessionBalances(prev => ({
+          ...prev,
+          [payment.consumer.id]: {
+            balance: details.availableBalance,
+            date: new Date().toLocaleDateString('en-GB'),
+            status: details.currentStatus
+          }
+        }));
+        updateConsumer(payment.consumer.id, {
+          lastFetchedBalance: details.availableBalance,
+          lastFetchedDate: new Date().toLocaleDateString('en-GB'),
+          currentStatus: details.currentStatus
+        });
+        setPayment(p => (p ? {
+          ...p,
+          status: 'done',
+          newBalance: details.availableBalance,
+          // A changed balance is the only proof the payment landed.
+          confirmed: !!p.balanceBefore && details.availableBalance !== p.balanceBefore,
+        } : p));
+      } catch {
+        // The payment may still have gone through; just cannot confirm it here.
+        setPayment(p => (p ? { ...p, status: 'done' } : p));
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [payment?.status, payment?.consumer, updateConsumer]);
 
   // Clear action menu when switching tabs
   useEffect(() => {
@@ -130,49 +242,6 @@ export function Home() {
     };
   }, []);
 
-  // Inject automation into desktop iframe when consumer is set
-  useEffect(() => {
-    if (!iframeConsumer) return;
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-    let injected = false;
-    const handleLoad = () => {
-      if (injected) return;
-      setTimeout(() => {
-        try {
-          const iframeWin = iframe.contentWindow as any;
-          if (!iframeWin) return;
-          injected = true;
-          const scriptEl = iframeWin.document.createElement('script');
-          const rawScript = automationScript
-            .replace('export const automationScript = `', '')
-            .replace(/`;\s*$/, '');
-          scriptEl.textContent = rawScript;
-          iframeWin.document.head.appendChild(scriptEl);
-          setTimeout(() => {
-            if (typeof iframeWin.startSbpdclAutomation === 'function') {
-              iframeWin.startSbpdclAutomation({
-                caNumber: iframeConsumer.caNumber,
-                mobileNumber: iframeConsumer.mobileNumber || '',
-                amount: iframeConsumer.preferredAmount || '',
-                gateway: iframeConsumer.preferredGateway || ''
-              });
-            }
-          }, 1500);
-        } catch (e) {
-          // Cross-origin block in standard desktop browsers. 
-          // We cannot inject scripts into a cross-origin iframe.
-          // Fall back to keeping the iframe open and copying CA to clipboard.
-          navigator.clipboard.writeText(iframeConsumer.caNumber)
-            .then(() => showToast('CA Number copied! Desktop browsers block auto-fill for security. Please paste manually.', 'success'))
-            .catch(() => showToast('Desktop browsers block auto-fill for security. Please enter manually.', 'error'));
-        }
-      }, 3000);
-    };
-    iframe.addEventListener('load', handleLoad);
-    return () => iframe.removeEventListener('load', handleLoad);
-  }, [iframeConsumer]);
-
 
   const showToast = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToastMessage(msg);
@@ -188,9 +257,11 @@ export function Home() {
     // Only notify if user has enabled low balance alerts
     if (!settings.reminderEnabled) return;
     try {
-      const balStr = (details.availableBalance || '').replace(/[^0-9.]/g, '');
+      // Preserve the minus sign so negative (overdrawn) balances are not treated as positive.
+      // e.g. "-₹500.00" → "-500" → parseFloat → -500 → correctly < 100 → alert fires.
+      const balStr = (details.availableBalance || '').replace(/[^0-9.-]/g, '');
       const bal = parseFloat(balStr);
-      if (isNaN(bal) || bal >= 100) return; // Balance is fine
+      if (isNaN(bal) || bal >= 100) return; // Balance is fine (positive & above threshold)
 
       const { LocalNotifications } = await import('@capacitor/local-notifications');
       const { display: permResult } = await LocalNotifications.checkPermissions();
@@ -268,39 +339,127 @@ export function Home() {
     const status = await Network.getStatus();
     if (!status.connected) { showToast(t.toast.offline, 'error'); return; }
     
-    // Fallback to desktop iframe if not native
-    import('@capacitor/core').then(({ Capacitor }) => {
+    // Web/PWA: register the recharge order through the API and hand the user
+    // straight to the payment page. Everything up to payment is automated; the
+    // payment itself is always completed by the user on the gateway.
+    import('@capacitor/core').then(async ({ Capacitor }) => {
       if (!Capacitor.isNativePlatform()) {
-        const tempConsumer = { ...consumer, preferredAmount: finalAmount };
-        setIframeConsumer(tempConsumer);
+        // Opened as a popup window rather than a tab. It cannot be an in-page
+        // modal: the gateway sends X-Frame-Options: SAMEORIGIN, so any attempt
+        // to iframe it is blocked by the browser.
+        // The window must be opened synchronously with the click that triggered
+        // this, or the popup blocker stops it — so open it now and navigate it
+        // once the gateway URL arrives.
+        // Roomy enough for the gateway's full desktop layout — a narrow window
+        // makes it fall back to a reduced set of payment options.
+        const popupWidth = Math.min(1024, Math.max(900, window.outerWidth - 200));
+        const popupHeight = Math.min(860, Math.max(700, window.outerHeight - 120));
+        const popupLeft = window.screenX + Math.max(0, (window.outerWidth - popupWidth) / 2);
+        const popupTop = window.screenY + Math.max(0, (window.outerHeight - popupHeight) / 2);
+        const payWindow = window.open(
+          '',
+          'bijli_payment',
+          `popup=yes,width=${popupWidth},height=${popupHeight},left=${popupLeft},top=${popupTop},resizable=yes,scrollbars=yes`
+        );
+        setIsRecharging(true);
+        const balanceBefore = consumer.lastFetchedBalance ?? sessionBalances[consumer.id]?.balance ?? null;
+        setPayment({ consumer, amount: Number(finalAmount), status: 'starting', url: '', balanceBefore });
+        try {
+          const { createRechargeOrder } = await import('../utils/sbpdclApi');
+          const order = await createRechargeOrder({
+            caNumber: consumer.caNumber,
+            amount: finalAmount,
+            mobileNumber: consumer.mobileNumber,
+            gateway: consumer.preferredGateway,
+          });
+          if (payWindow) {
+            payWindow.location.href = order.paymentUrl;
+            payWindowRef.current = payWindow;
+          } else {
+            // Popup blocked — the modal offers a manual "Open payment window".
+            payWindowRef.current = null;
+          }
+          setPayment({
+            consumer,
+            amount: order.amount,
+            url: order.paymentUrl,
+            status: payWindow ? 'paying' : 'blocked',
+            balanceBefore, // carry forward — the outcome check compares against it
+          });
+        } catch (err) {
+          payWindow?.close();
+          const message = err instanceof Error ? err.message : 'Could not start the recharge.';
+          setPayment({ consumer, amount: Number(finalAmount), url: '', status: 'error', error: message });
+        } finally {
+          setIsRecharging(false);
+        }
         return;
       }
 
-      showToast(`${t.toast.rechargeStart} ${consumer.name}...`);
+      // Native: register the order through the API, then open the payment page
+      // directly. Previously this drove the portal's own form step by step —
+      // filling the CA number, searching, picking a gateway, dismissing a confirm
+      // dialog — which was slow and broke whenever the portal's markup changed.
       const win = window as any;
-      if (win.cordova?.InAppBrowser) {
+      if (!win.cordova?.InAppBrowser) { showToast(t.toast.browserError, 'error'); return; }
+
+      setIsRecharging(true);
+      showToast(`${t.toast.rechargeStart} ${consumer.name}...`);
+
+      let paymentUrl: string;
+      try {
+        const { createRechargeOrder } = await import('../utils/sbpdclApi');
+        const order = await createRechargeOrder({
+          caNumber: consumer.caNumber,
+          amount: finalAmount,
+          mobileNumber: consumer.mobileNumber,
+          gateway: consumer.preferredGateway,
+        });
+        paymentUrl = order.paymentUrl;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Could not start the recharge.';
+        showToast(`Error: ${message}`, 'error');
+        return;
+      } finally {
+        setIsRecharging(false);
+      }
+
+      {
+        // No clearcache/clearsessioncache here: those existed to stop one meter's
+        // data bleeding into the next while driving the portal's form. This window
+        // only ever shows the gateway, and wiping the session can break the
+        // acknowledgement page the gateway redirects back to.
         const browser = win.cordova.InAppBrowser.open(
-          'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank',
+          paymentUrl, '_blank',
           ['location=no','toolbar=yes','toolbarcolor=#2563eb','closebuttoncaption=✕ Close',
            'closebuttoncolor=#ffffff','hideurlbar=yes',
-           'zoom=no','clearcache=yes','clearsessioncache=yes','hardwareback=yes'].join(',')
+           'zoom=no','hardwareback=yes'].join(',')
         );
+
+        // Snapshot the balance so the outcome can be reported honestly on exit
+        // rather than assuming the payment succeeded.
+        const balanceBefore = consumer.lastFetchedBalance ?? sessionBalances[consumer.id]?.balance ?? null;
 
         // Open UPI payment apps in system browser; keep IAB open for timer/acknowledgement page
         let lastUpiIntentUrl = '';
         let lastUpiIntentAt = 0;
-        let upiWasTriggered = false;
         let autoCloseTimer: any = null;
+        let stayRequested = false; // user asked to keep reading the acknowledgement
 
         const openUpiIntent = (url: string) => {
           const cleanUrl = String(url || '').trim();
           if (!cleanUrl) return;
-          const lowerUrl = cleanUrl.toLowerCase();
-          const isUpiIntent = lowerUrl.startsWith('upi://') || lowerUrl.startsWith('intent://') ||
-                              lowerUrl.startsWith('paytmmp://') || lowerUrl.startsWith('phonepe://') ||
-                              lowerUrl.startsWith('tez://') || lowerUrl.startsWith('gpay://');
-          if (!isUpiIntent) return;
-          upiWasTriggered = true;
+          // Treat any non-web scheme as an app handoff rather than allow-listing
+          // individual UPI apps: the gateway keeps adding them (BHIM, CRED, Amazon
+          // Pay, slice…), and an unlisted one would launch natively without ever
+          // setting upiWasTriggered — losing the post-payment balance refresh.
+          const colonAt = cleanUrl.indexOf(':');
+          if (colonAt <= 0) return; // no scheme at all — never a valid app handoff
+          const scheme = cleanUrl.slice(0, colonAt).toLowerCase();
+          const WEB_SCHEMES = ['http', 'https', 'about', 'data', 'blob', 'javascript', 'file', 'content', 'chrome'];
+          // Handled by Android itself and unrelated to payment.
+          const NON_PAYMENT_SCHEMES = ['mailto', 'tel', 'sms', 'geo'];
+          if (!scheme || WEB_SCHEMES.includes(scheme) || NON_PAYMENT_SCHEMES.includes(scheme)) return;
           const now = Date.now();
           if (cleanUrl === lastUpiIntentUrl && now - lastUpiIntentAt < 1500) return;
           lastUpiIntentUrl = cleanUrl;
@@ -308,34 +467,102 @@ export function Home() {
           win.cordova.InAppBrowser.open(cleanUrl, '_system');
         };
 
-        // When browser exits (user taps Home button or auto-close fires) — refresh balance if UPI was used
-        browser.addEventListener('exit', () => {
+        // The window now shows nothing but the payment page, so any exit means the
+        // user is done — paid or abandoned. Always re-check: it is one cheap API
+        // call and it is the only way to tell which happened.
+        browser.addEventListener('exit', async () => {
           if (autoCloseTimer) clearTimeout(autoCloseTimer);
-          if (upiWasTriggered) {
-            setTimeout(() => {
-              showToast(lang === 'en' ? 'Checking updated balance after payment...' : 'भुगतान के बाद अद्यतन राशि की जाँच की जा रही है...');
-              handleCheckBalance(consumer);
-            }, 600);
+          showToast(lang === 'en' ? 'Checking updated balance after payment...' : 'भुगतान के बाद अद्यतन राशि की जाँच की जा रही है...');
+          try {
+            const { fetchBalanceFromApi } = await import('../utils/sbpdclApi');
+            const details = await fetchBalanceFromApi(consumer.caNumber);
+            setSessionBalances(prev => ({
+              ...prev,
+              [consumer.id]: {
+                balance: details.availableBalance,
+                date: new Date().toLocaleDateString('en-GB'),
+                status: details.currentStatus
+              }
+            }));
+            updateConsumer(consumer.id, {
+              lastFetchedBalance: details.availableBalance,
+              lastFetchedDate: new Date().toLocaleDateString('en-GB'),
+              currentStatus: details.currentStatus
+            });
+            // Only a changed balance proves the payment landed. Anything else is
+            // reported as "not confirmed" rather than success or failure — the
+            // discom can take a few minutes to credit a genuine payment.
+            if (balanceBefore && details.availableBalance !== balanceBefore) {
+              showToast(
+                lang === 'en'
+                  ? `Recharge confirmed — balance is now ${details.availableBalance}`
+                  : `रिचार्ज सफल — शेष राशि अब ${details.availableBalance}`,
+                'success'
+              );
+            } else {
+              showToast(
+                lang === 'en'
+                  ? `Balance unchanged (${details.availableBalance}). If you paid, it can take a few minutes.`
+                  : `शेष राशि अपरिवर्तित (${details.availableBalance})। भुगतान किया है तो कुछ मिनट लग सकते हैं।`,
+                'info'
+              );
+            }
+            checkAndNotifyLowBalance(details, consumer.name);
+          } catch {
+            showToast(
+              lang === 'en'
+                ? 'Could not confirm the payment. Please check your balance shortly.'
+                : 'भुगतान की पुष्टि नहीं हो सकी। कृपया थोड़ी देर बाद शेष राशि जाँचें।',
+              'error'
+            );
           }
         });
 
         browser.addEventListener('loadstart', (event: any) => {
           const url = String(event?.url || '');
-          
-          // Intercept floating close button click
-          if (url === 'https://app.close.browser/') {
+          const action = routePaymentWindowUrl(url, {
+            countdownRunning: !!autoCloseTimer,
+            stayRequested,
+          });
+
+          if (action === 'close') {
             if (autoCloseTimer) clearTimeout(autoCloseTimer);
             browser.close();
             return;
           }
 
-          openUpiIntent(url);
+          // User tapped the countdown banner to keep reading the acknowledgement.
+          if (action === 'stay') {
+            if (autoCloseTimer) clearTimeout(autoCloseTimer);
+            autoCloseTimer = null;
+            stayRequested = true;
+            browser.executeScript({ code: `
+              var b = document.getElementById('bijli-autoclosetimer');
+              if (b) b.parentNode.removeChild(b);
+              history.back();
+            ` });
+            return;
+          }
 
-          // Detect return to SBPDCL search page AFTER payment (acknowledgement complete)
-          // The Juspay gateway redirects back to sbpdcl searchbill page when done
-          if (upiWasTriggered && (url.includes('sbpdcl') || url.includes('cportal')) && !autoCloseTimer) {
-            // Start 12-second countdown to auto-close browser and return home
-            let countdown = 12;
+          if (action === 'app-handoff') {
+            openUpiIntent(url);
+            return;
+          }
+
+          // Empty JSON body renders as a blank white page — nothing to read, so
+          // close and let the in-app balance check report the real outcome.
+          if (action === 'close-blank') {
+            if (autoCloseTimer) clearTimeout(autoCloseTimer);
+            autoCloseTimer = null;
+            setTimeout(() => { try { browser.close(); } catch (_) {} }, 400);
+            return;
+          }
+
+          // A real acknowledgement page. This is reached after cancellations and
+          // failures too, so the countdown must not claim the payment succeeded.
+          if (action === 'start-countdown') {
+            // Long enough to actually read the bank's acknowledgement.
+            let countdown = 20;
             const tick = () => {
               browser.executeScript({ code: `
                 (function() {
@@ -346,7 +573,9 @@ export function Home() {
                     existing.style = 'position:fixed; top:16px; left:50%; transform:translateX(-50%); background:#0f172a; border:2px solid #22c55e; color:white; padding:10px 22px; border-radius:30px; z-index:2147483647; font-weight:bold; box-shadow:0 8px 16px rgba(0,0,0,0.5); font-family:sans-serif; font-size:14px; text-align:center; white-space:nowrap;';
                     document.body.appendChild(existing);
                   }
-                  existing.innerHTML = '✅ Payment done — Returning home in ${countdown}s';
+                  existing.innerHTML = 'Returning to Bijli Recharge in ${countdown}s — tap to stay';
+                  existing.style.cursor = 'pointer';
+                  existing.onclick = function() { window.location.href = 'https://app.stay.browser/'; };
                 })();
               `});
               countdown--;
@@ -367,12 +596,9 @@ export function Home() {
           openUpiIntent(String(event?.url || ''));
         });
 
-        // Inject automation script once — only on the SBPDCL portal page, not on payment gateways
-        let scriptInjected = false;
-        browser.addEventListener('loadstop', (event: any) => {
-          const url = String(event?.url || '');
-          
-          // Inject floating close button on ALL pages (including Juspay) to prevent getting stuck
+        browser.addEventListener('loadstop', () => {
+          // Floating close button on every page (including the gateway's own
+          // sub-pages) so the user can always get back out.
           browser.executeScript({ code: `
             if (!document.getElementById('bijli-float-close')) {
               var btn = document.createElement('div');
@@ -383,28 +609,8 @@ export function Home() {
               document.body.appendChild(btn);
             }
           `});
-
-          if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
-          if (scriptInjected) return;
-          scriptInjected = true;
-          
-          setTimeout(() => {
-            browser.executeScript({ code: automationScript });
-            setTimeout(() => {
-              browser.executeScript({ code: `
-                if (typeof window.startSbpdclAutomation === 'function') {
-                  window.startSbpdclAutomation({
-                    caNumber: '${consumer.caNumber}',
-                    mobileNumber: '${consumer.mobileNumber || ''}',
-                    amount: '${finalAmount}',
-                    gateway: '${consumer.preferredGateway || 'HDFC'}'
-                  });
-                }
-              `});
-            }, 1500);
-          }, 3000);
         });
-      } else { window.open('https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill', '_blank'); }
+      }
     });
   };
 
@@ -425,207 +631,84 @@ export function Home() {
     const status = await Network.getStatus();
     if (!status.connected) { showToast(t.toast.offline, 'error'); return; }
 
-    const { Capacitor } = await import('@capacitor/core');
-
-    // ── PWA / browser fallback ──────────────────────────────────────────────
-    // InAppBrowser is only available in native. In the PWA, show the cached
-    // balance (synced from the last native session) with a portal deep-link.
-    if (!Capacitor.isNativePlatform()) {
-      setIsBalanceOpen(true);
-      setIsBalanceLoading(false);
-      if (consumer.lastFetchedBalance) {
-        setBalanceDetails({
-          caNumber:          consumer.caNumber,
-          name:              consumer.name,
-          division:          '',
-          subDivision:       '',
-          lastRechargeDate:  consumer.lastFetchedDate || 'N/A',
-          lastRechargeAmount:'N/A',
-          consumerType:      '',
-          currentStatus:     consumer.currentStatus || 'N/A',
-          availableBalance:  consumer.lastFetchedBalance,
-          amispVendor:       ''
-        });
-      } else {
-        setBalanceDetails(null);
-        showToast('No cached balance yet. Use the Android app to fetch balance first.', 'info');
-      }
-      return;
-    }
-    // ── Native (Capacitor) path ─────────────────────────────────────────────
-    const win = window as any;
-    if (!win.cordova?.InAppBrowser) { showToast(t.toast.browserError, 'error'); return; }
-
+    // Same path on web and native: the JSON API is reachable from both, so there
+    // is no reason to drive a hidden browser on Android any more.
+    // The cached balance shows immediately (if any) so the modal is never empty,
+    // then is replaced in place once the live value arrives.
     setIsBalanceOpen(true);
+    setBalanceDetails(consumer.lastFetchedBalance ? {
+      caNumber:           consumer.caNumber,
+      name:               consumer.name,
+      division:           '',
+      subDivision:        '',
+      lastRechargeDate:   consumer.lastFetchedDate  || 'N/A',
+      lastRechargeAmount: 'N/A',
+      consumerType:       '',
+      currentStatus:      consumer.currentStatus    || 'N/A',
+      availableBalance:   consumer.lastFetchedBalance,
+      amispVendor:        '',
+    } : null);
     setIsBalanceLoading(true);
-    setBalanceDetails(null);
 
-    const browser = win.cordova.InAppBrowser.open(
-      'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
-      '_blank',
-      'hidden=yes,location=no,clearcache=yes,clearsessioncache=yes'
-    );
-
-    let done = false;
-    let scriptInjected = false;  // prevent duplicate injection on SPA route changes
-    let pollInterval: any = null;
-    const timeout = setTimeout(() => cleanup(false, 'Timed out. Please try again.'), 45000);
-
-    function cleanup(success: boolean, errMsg?: string, details?: any) {
-      if (done) return;
-      done = true;
-      clearTimeout(timeout);
-      if (pollInterval) clearInterval(pollInterval);
-      try { browser.close(); } catch (_) {}
-      if (success && details) {
-        setBalanceDetails(details);
-        setIsBalanceLoading(false);
-        checkAndNotifyLowBalance(details, consumer.name);
-      } else {
-        setIsBalanceLoading(false);
-        setIsBalanceOpen(false);
-        if (errMsg) showToast('Error: ' + errMsg, 'error');
-      }
-    }
-
-    browser.addEventListener('exit', () => {
-      if (!done) cleanup(false);
-    });
-
-    browser.addEventListener('loadstop', (event: any) => {
-      const url = String(event?.url || '');
-      if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
-      if (done || scriptInjected) return;  // only inject once
-      scriptInjected = true;
-
-      // Wait for Angular to render, then inject script
-      setTimeout(() => {
-        if (done) return;
-        browser.executeScript({ code: automationScript });
-        setTimeout(() => {
-          if (done) return;
-          browser.executeScript({ code: `
-            window.__balanceResult = null;
-            window.__balanceError = null;
-            if (typeof window.fetchSbpdclBalance === 'function') {
-              window.fetchSbpdclBalance('${consumer.caNumber}');
-            } else {
-              window.__balanceError = 'Script not ready';
-            }
-          ` });
-          pollInterval = setInterval(() => {
-              if (done) return;
-              browser.executeScript(
-                { code: `JSON.stringify({ r: window.__balanceResult, e: window.__balanceError })` },
-                (res: any) => {
-                  if (done) return;
-                  try {
-                    const d = JSON.parse(res?.[0] || '{}');
-                    if (d.r) cleanup(true, undefined, d.r);
-                    else if (d.e) cleanup(false, d.e);
-                  } catch (_) {}
-                }
-              );
-            }, 2000);
-        }, 1500);
-      }, 3000);
-    });
-  };
-
-  const fetchBalanceSilently = (consumer: Consumer): Promise<void> => {
-    return new Promise(async (resolve) => {
-      try {
-        const { Capacitor } = await import('@capacitor/core');
-        if (!Capacitor.isNativePlatform()) { resolve(); return; }
-        const status = await Network.getStatus();
-        if (!status.connected) { resolve(); return; }
-        const win = window as any;
-        if (!win.cordova?.InAppBrowser) { resolve(); return; }
-
-        const browser = win.cordova.InAppBrowser.open(
-          'https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill',
-          '_blank',
-          // clearsessioncache=yes is CRITICAL for multi-meter - prevents session bleed between meters
-          'hidden=yes,clearcache=yes,clearsessioncache=yes'
-        );
-
-        let done = false;
-        let scriptInjected = false;  // prevent duplicate injection on SPA route changes
-        let pollInterval: any = null;
-        const timeout = setTimeout(() => finish(), 45000);
-
-        function finish(data?: any) {
-          if (done) return;
-          done = true;
-          clearTimeout(timeout);
-          if (pollInterval) clearInterval(pollInterval);
-          try { browser.close(); } catch (_) {}
-          if (data) {
-            // Update UI session state first (fast, no storage write)
-            setSessionBalances(prev => ({
-              ...prev,
-              [consumer.id]: {
-                balance: data.availableBalance,
-                date: new Date().toLocaleDateString('en-GB'),
-                status: data.currentStatus
-              }
-            }));
-            // Write to storage separately to avoid triggering consumer list re-render mid-sync
-            setTimeout(() => {
-              updateConsumer(consumer.id, {
-                lastFetchedBalance: data.availableBalance,
-                lastFetchedDate: new Date().toLocaleDateString('en-GB'),
-                currentStatus: data.currentStatus
-              });
-            }, 100);
-            checkAndNotifyLowBalance(data, consumer.name);
-          }
-          resolve();
+    try {
+      const { fetchBalanceFromApi } = await import('../utils/sbpdclApi');
+      const details = await fetchBalanceFromApi(consumer.caNumber);
+      setBalanceDetails(details);
+      setSessionBalances(prev => ({
+        ...prev,
+        [consumer.id]: {
+          balance: details.availableBalance,
+          date: new Date().toLocaleDateString('en-GB'),
+          status: details.currentStatus
         }
-
-        browser.addEventListener('exit', () => finish());
-
-        browser.addEventListener('loadstop', (event: any) => {
-          const url = String(event?.url || '');
-          if (!url.includes('sbpdcl') && !url.includes('cportal')) return;
-          if (done || scriptInjected) return;  // only inject once per browser session
-          scriptInjected = true;
-
-          setTimeout(() => {
-            if (done) return;
-            browser.executeScript({ code: automationScript });
-            setTimeout(() => {
-              if (done) return;
-              browser.executeScript({ code: `
-                window.__balanceResult = null;
-                window.__balanceError = null;
-                if (typeof window.fetchSbpdclBalance === 'function') {
-                  window.fetchSbpdclBalance('${consumer.caNumber}');
-                } else {
-                  window.__balanceError = 'Script not ready';
-                }
-              ` });
-              pollInterval = setInterval(() => {
-                if (done) return;
-                browser.executeScript(
-                  { code: `JSON.stringify({ r: window.__balanceResult, e: window.__balanceError })` },
-                  (res: any) => {
-                    if (done) return;
-                    try {
-                      const d = JSON.parse(res?.[0] || '{}');
-                      if (d.r) finish(d.r);
-                      else if (d.e) finish();
-                    } catch (_) {}
-                  }
-                );
-              }, 2000);
-            }, 1500);
-          }, 3000);
-        });
-      } catch (_) { resolve(); }
-    });
+      }));
+      updateConsumer(consumer.id, {
+        lastFetchedBalance: details.availableBalance,
+        lastFetchedDate: new Date().toLocaleDateString('en-GB'),
+        currentStatus: details.currentStatus
+      });
+      checkAndNotifyLowBalance(details, consumer.name);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not fetch balance.';
+      // The modal stays open either way: with a cached balance it keeps showing
+      // it, and without one it falls through to the "Balance unavailable" state.
+      // Closing it on failure would hide the last known balance and leave only
+      // a toast to explain why the screen vanished.
+      if (consumer.lastFetchedBalance) {
+        showToast(`Showing last saved balance — ${message}`, 'info');
+      } else {
+        showToast(`Error: ${message}`, 'error');
+      }
+    } finally {
+      setIsBalanceLoading(false);
+    }
   };
 
+  // Silent background fetch for the sync loop, on both web and native.
+  // Errors are swallowed on purpose: this runs unattended, and one unreachable
+  // meter must not abort the rest of the sync.
+  const fetchBalanceSilently = async (consumer: Consumer): Promise<void> => {
+    try {
+      const { fetchBalanceFromApi } = await import('../utils/sbpdclApi');
+      const details = await fetchBalanceFromApi(consumer.caNumber);
+      setSessionBalances(prev => ({
+        ...prev,
+        [consumer.id]: {
+          balance: details.availableBalance,
+          date: new Date().toLocaleDateString('en-GB'),
+          status: details.currentStatus
+        }
+      }));
+      updateConsumer(consumer.id, {
+        lastFetchedBalance: details.availableBalance,
+        lastFetchedDate: new Date().toLocaleDateString('en-GB'),
+        currentStatus: details.currentStatus
+      });
+      checkAndNotifyLowBalance(details, consumer.name);
+    } catch {
+      // leave the previously cached balance in place
+    }
+  };
 
   const syncAllMeters = async () => {
     if (consumers.length === 0 || isSyncing) return;
@@ -908,7 +991,7 @@ export function Home() {
                           )}
                           {sessionBalances[consumer.id] && (
                             <div className="mt-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                              Balance: <span className={sessionBalances[consumer.id].balance.includes('-') ? 'text-green-500' : 'text-red-500'}>{sessionBalances[consumer.id].balance}</span>
+                              Balance: <span className={sessionBalances[consumer.id].balance.includes('-') ? 'text-red-500' : 'text-green-500'}>{sessionBalances[consumer.id].balance}</span>
                               <span className="text-[10px] text-gray-400 font-normal ml-1">({sessionBalances[consumer.id].date})</span>
                             </div>
                           )}
@@ -953,10 +1036,11 @@ export function Home() {
                     <div className="p-3 flex flex-col gap-2">
                       <button
                         onClick={() => handleRecharge(consumer)}
+                        disabled={isRecharging}
                         className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl h-11 font-semibold text-sm shadow-md shadow-primary-500/25 active:scale-95 transition-all"
                       >
                         <Zap size={16} className="text-yellow-300 fill-yellow-300" />
-                        {t.home.rechargeNow}
+                        {isRecharging ? (lang === 'en' ? 'Starting…' : 'शुरू हो रहा है…') : t.home.rechargeNow}
                       </button>
                       <button
                         onClick={() => handleCheckBalance(consumer)}
@@ -965,6 +1049,23 @@ export function Home() {
                         <Search size={14} className="text-primary-500" />
                         {t.home.checkBalance}
                       </button>
+                      {!isNative() && (
+                        <div className={`mt-2 pt-3 border-t flex flex-col gap-2 ${isDark ? 'border-[#253350]/60' : 'border-gray-100'}`}>
+                          <p className={`text-[10px] font-semibold uppercase tracking-wider ${textSecondary}`}>PC Bookmarklet</p>
+                          <a 
+                            href={generateBookmarklet(consumer)}
+                            title="Drag to your bookmarks bar"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              showToast('Drag this button to your browser bookmarks bar! Do not click it here.', 'info');
+                            }}
+                            className={`w-full flex items-center justify-center gap-2 rounded-lg h-9 text-xs font-semibold border border-dashed transition-all cursor-grab active:cursor-grabbing ${isDark ? 'bg-[#1c2a42] border-[#3b82f6]/50 text-[#3b82f6] hover:bg-[#3b82f6]/10' : 'bg-blue-50/50 border-blue-300 text-blue-600 hover:bg-blue-50'}`}
+                          >
+                            <Zap size={12} className={isDark ? "text-[#3b82f6]" : "text-blue-500"} />
+                            Auto-Recharge {consumer.name.split(' ')[0]}
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1036,7 +1137,7 @@ export function Home() {
                         )}
                         {sessionBalances[consumer.id] && (
                           <div className="mt-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
-                            Balance: <span className={sessionBalances[consumer.id].balance.includes('-') ? 'text-green-500' : 'text-red-500'}>{sessionBalances[consumer.id].balance}</span>
+                            Balance: <span className={sessionBalances[consumer.id].balance.includes('-') ? 'text-red-500' : 'text-green-500'}>{sessionBalances[consumer.id].balance}</span>
                             <span className="text-[10px] text-gray-400 font-normal ml-1">({sessionBalances[consumer.id].date})</span>
                           </div>
                         )}
@@ -1083,10 +1184,11 @@ export function Home() {
                   <div className="p-3 flex flex-col gap-2">
                     <button
                       onClick={() => handleRecharge(consumer)}
+                        disabled={isRecharging}
                       className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl h-11 font-semibold text-sm shadow-md shadow-primary-500/25 active:scale-95 transition-all"
                     >
                       <Zap size={16} className="text-yellow-300 fill-yellow-300" />
-                      {t.home.rechargeNow}
+                      {isRecharging ? (lang === 'en' ? 'Starting…' : 'शुरू हो रहा है…') : t.home.rechargeNow}
                     </button>
                     <button
                       onClick={() => handleCheckBalance(consumer)}
@@ -1095,6 +1197,23 @@ export function Home() {
                       <Search size={14} className="text-primary-500" />
                       {t.home.checkBalance}
                     </button>
+                    {!isNative() && (
+                      <div className={`mt-2 pt-3 border-t flex flex-col gap-2 ${isDark ? 'border-[#253350]/60' : 'border-gray-100'}`}>
+                        <p className={`text-[10px] font-semibold uppercase tracking-wider ${textSecondary}`}>PC Bookmarklet</p>
+                        <a 
+                          href={generateBookmarklet(consumer)}
+                          title="Drag to your bookmarks bar"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            showToast('Drag this button to your browser bookmarks bar! Do not click it here.', 'info');
+                          }}
+                          className={`w-full flex items-center justify-center gap-2 rounded-lg h-9 text-xs font-semibold border border-dashed transition-all cursor-grab active:cursor-grabbing ${isDark ? 'bg-[#1c2a42] border-[#3b82f6]/50 text-[#3b82f6] hover:bg-[#3b82f6]/10' : 'bg-blue-50/50 border-blue-300 text-blue-600 hover:bg-blue-50'}`}
+                        >
+                          <Zap size={12} className={isDark ? "text-[#3b82f6]" : "text-blue-500"} />
+                          Auto-Recharge {consumer.name.split(' ')[0]}
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1274,6 +1393,141 @@ export function Home() {
 
 
       {/* ════════════════════════════════════════════════════════
+          PAYMENT MODAL (web only — the gateway cannot be framed)
+      ════════════════════════════════════════════════════════ */}
+      <Modal
+        isOpen={!!payment}
+        onClose={() => {
+          // Never close the gateway window from under a payment in progress.
+          if (payment?.status === 'paying' || payment?.status === 'checking') return;
+          payWindowRef.current = null;
+          setPayment(null);
+        }}
+        title={payment?.status === 'done' ? 'Payment Finished' : 'Recharge Payment'}
+      >
+        {payment && (
+          <div className="space-y-4 text-center py-2">
+            {(payment.status === 'starting' || payment.status === 'checking') && (
+              <>
+                <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto" />
+                <p className="font-semibold text-gray-900">
+                  {payment.status === 'starting' ? 'Setting up your payment…' : 'Checking your new balance…'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {payment.status === 'starting'
+                    ? `₹${payment.amount} for ${payment.consumer.name}`
+                    : 'One moment while we confirm with SBPDCL.'}
+                </p>
+              </>
+            )}
+
+            {payment.status === 'paying' && (
+              <>
+                <div className="w-14 h-14 bg-primary-50 rounded-full flex items-center justify-center mx-auto">
+                  <CreditCard size={26} className="text-primary-600" />
+                </div>
+                <p className="font-semibold text-gray-900">Complete your ₹{payment.amount} payment</p>
+                <p className="text-sm text-gray-500">
+                  The payment window is open. Banks don't allow their payment pages
+                  to run inside another site, so it opens separately.
+                </p>
+                {/* SBPDCL's return endpoint (PGResponseService) answers with an empty
+                    JSON body, so the payment window ends on a blank page whether the
+                    payment succeeded or was cancelled. It is cross-origin, so this page
+                    cannot detect that and close it — say so, and give a button that does. */}
+                <p className="text-xs text-gray-400">
+                  When the bank finishes, that window ends on a blank white page —
+                  that's normal. Come back here and tap below.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Closing triggers the existing outcome check, which decides
+                    // success or failure from the balance rather than assuming.
+                    try { payWindowRef.current?.close(); } catch { /* already gone */ }
+                  }}
+                  className="w-full py-2.5 bg-primary-600 text-white rounded-xl font-semibold text-sm"
+                >
+                  I've finished — check my balance
+                </button>
+                <button
+                  type="button"
+                  onClick={() => payWindowRef.current?.focus()}
+                  className="w-full py-2 text-primary-600 font-semibold text-sm"
+                >
+                  Show payment window
+                </button>
+              </>
+            )}
+
+            {payment.status === 'blocked' && (
+              <>
+                <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto">
+                  <Shield size={26} className="text-amber-500" />
+                </div>
+                <p className="font-semibold text-gray-900">Your browser blocked the payment window</p>
+                <p className="text-sm text-gray-500">Allow popups for this site, or open it manually below.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const win = window.open(payment.url, 'bijli_payment', 'popup=yes,width=1000,height=820,resizable=yes,scrollbars=yes');
+                    if (win) {
+                      payWindowRef.current = win;
+                      setPayment(p => (p ? { ...p, status: 'paying' } : p));
+                    }
+                  }}
+                  className="w-full py-2.5 bg-primary-600 text-white rounded-xl font-semibold text-sm"
+                >
+                  Open payment window
+                </button>
+              </>
+            )}
+
+            {payment.status === 'done' && (
+              <>
+                {/* Only a changed balance proves the payment went through. A
+                    cancelled payment also lands here, so nothing is called
+                    successful without evidence. */}
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto ${payment.confirmed ? 'bg-green-50' : 'bg-amber-50'}`}>
+                  <Activity size={26} className={payment.confirmed ? 'text-green-600' : 'text-amber-500'} />
+                </div>
+                <p className="font-semibold text-gray-900">
+                  {payment.confirmed
+                    ? `Recharge confirmed — balance is now ${payment.newBalance}`
+                    : payment.newBalance
+                      ? `Balance unchanged (${payment.newBalance})`
+                      : 'Payment window closed'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {payment.confirmed
+                    ? 'Your meter has been credited.'
+                    : payment.newBalance
+                      ? 'If you completed the payment, it can take a few minutes to be credited. If you cancelled, nothing was charged.'
+                      : 'We could not reach SBPDCL to confirm — check your balance again in a moment.'}
+                </p>
+              </>
+            )}
+
+            {payment.status === 'error' && (
+              <>
+                <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto">
+                  <Shield size={26} className="text-red-500" />
+                </div>
+                <p className="font-semibold text-gray-900">Could not start the recharge</p>
+                <p className="text-sm text-gray-500">{payment.error}</p>
+              </>
+            )}
+
+            {payment.status !== 'paying' && payment.status !== 'checking' && (
+              <Button variant="secondary" className="w-full" onClick={() => { payWindowRef.current = null; setPayment(null); }}>
+                Close
+              </Button>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* ════════════════════════════════════════════════════════
           ADD / EDIT MODAL
       ════════════════════════════════════════════════════════ */}
       <Modal isOpen={isAddOpen} onClose={() => { setIsAddOpen(false); resetForm(); }} title={editingConsumer ? t.form.editTitle : t.form.addTitle}>
@@ -1368,51 +1622,6 @@ export function Home() {
         }}
       />
 
-      {/* ════ DESKTOP IFRAME MODAL ════ */}
-      {iframeConsumer && (
-        <div className="fixed inset-0 z-[9999] flex flex-col bg-black/70 backdrop-blur-sm" style={{ animation: 'fadeIn 0.2s ease' }}>
-          {/* Top bar */}
-          <div className="flex items-center justify-between px-4 py-3 bg-[#1e293b] border-b border-[#334155] flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <AppLogo className="w-7 h-7 bg-primary-600 rounded-lg flex-shrink-0" />
-              <div>
-                <p className="text-white font-semibold text-sm leading-tight">
-                  <span className="capitalize">{iframeConsumer.name}</span> — Recharge
-                </p>
-                <p className="text-slate-400 text-xs font-mono">CA: {iframeConsumer.caNumber}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-900/40 border border-emerald-700/40 px-3 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"></span>
-                Automation running
-              </span>
-              <button
-                onClick={() => setIframeConsumer(null)}
-                className="flex items-center gap-1.5 text-sm text-slate-300 hover:text-white bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg transition-colors"
-              >
-                ✕ Close
-              </button>
-            </div>
-          </div>
-
-          {/* Info banner */}
-          <div className="bg-primary-900/60 border-b border-primary-700/40 px-4 py-2 flex items-center gap-2 text-xs text-primary-200 flex-shrink-0">
-            <Zap size={12} className="text-yellow-400 flex-shrink-0" />
-            Automation will fill your CA number, select gateway <strong className="text-white">{iframeConsumer.preferredGateway || 'auto'}</strong>, enter amount <strong className="text-white">{iframeConsumer.preferredAmount ? `₹${iframeConsumer.preferredAmount}` : '(manual)'}</strong>, and open UPI payment.
-          </div>
-
-          {/* iFrame */}
-          <iframe
-            ref={iframeRef}
-            key={iframeConsumer.id}
-            src="https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill"
-            className="flex-1 w-full border-0 bg-white"
-            title="SBPDCL Payment Portal"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation"
-          />
-        </div>
-      )}
     </div>
 
   );

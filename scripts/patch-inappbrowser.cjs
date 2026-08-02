@@ -104,5 +104,93 @@ if (code.includes(search3)) {
   console.log('AllowedSchemes block already patched or not found');
 }
 
+// ── Patches 4 & 5: survive a missing UPI app ────────────────────────────────
+// Both intent branches above catch ActivityNotFoundException but leave
+// `override` false, so shouldOverrideUrlLoading returns false and the WebView
+// tries to load "upi://..." itself — replacing the live payment page with an
+// ERR_UNKNOWN_URL_SCHEME error and losing the payment session.
+// Always claim the URL, use the intent's browser_fallback_url when it has one,
+// and tell the user which app is missing instead of failing silently.
+// These run against the output of patches 1-3, so they are idempotent.
+
+const TOAST = (msg) => `cordova.getActivity().runOnUiThread(new Runnable() {
+                                    public void run() {
+                                        android.widget.Toast.makeText(cordova.getActivity(), ${msg}, android.widget.Toast.LENGTH_LONG).show();
+                                    }
+                                });`;
+
+const search4 = `                } catch (android.content.ActivityNotFoundException e) {
+                    LOG.e(LOG_TAG, "Error with " + url + ": " + e.toString());
+                }`;
+const replace4 = `                } catch (android.content.ActivityNotFoundException e) {
+                    // Claim the URL regardless: letting the WebView handle a custom
+                    // scheme it cannot load would wipe out the payment page.
+                    override = true;
+                    String fallbackUrl = null;
+                    if (url.startsWith("intent:")) {
+                        try {
+                            fallbackUrl = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                                    .getStringExtra("browser_fallback_url");
+                        } catch (Exception ignored) { }
+                    }
+                    if (fallbackUrl != null && !fallbackUrl.isEmpty()) {
+                        // This overload has no WebView parameter; use the outer
+                        // class's instance, and load on the UI thread.
+                        final String fallbackTarget = fallbackUrl;
+                        cordova.getActivity().runOnUiThread(new Runnable() {
+                            public void run() {
+                                if (inAppWebView != null) inAppWebView.loadUrl(fallbackTarget);
+                            }
+                        });
+                    } else {
+                        ${TOAST('"That app isn\'t installed. Pick another payment method."')}
+                    }
+                    LOG.e(LOG_TAG, "Error with " + url + ": " + e.toString());
+                }`;
+
+if (code.includes(replace4)) {
+  console.log('Missing-app fallback (intent branch) already patched');
+} else if (code.includes(search4)) {
+  code = code.replace(search4, replace4);
+  console.log('Patched missing-app fallback in intent branch');
+} else {
+  console.log('WARNING: could not patch missing-app fallback in intent branch');
+}
+
+const search5 = `                            } catch (android.content.ActivityNotFoundException e) {
+                                LOG.e(LOG_TAG, "UPI app not found for scheme: " + url + " : " + e.toString());
+                            }`;
+const replace5 = `                            } catch (android.content.ActivityNotFoundException e) {
+                                // See above: never hand an unlaunchable scheme back
+                                // to the WebView.
+                                override = true;
+                                ${TOAST('"That payment app isn\'t installed."')}
+                                LOG.e(LOG_TAG, "UPI app not found for scheme: " + url + " : " + e.toString());
+                            }`;
+
+if (code.includes(replace5)) {
+  console.log('Missing-app fallback (allowedSchemes) already patched');
+} else if (code.includes(search5)) {
+  code = code.replace(search5, replace5);
+  console.log('Patched missing-app fallback in allowedSchemes block');
+} else {
+  console.log('WARNING: could not patch missing-app fallback in allowedSchemes block');
+}
+
+// Repair an earlier revision of patch 4 that called view.loadUrl(): this
+// overload of shouldOverrideUrlLoading has no WebView parameter, so that did
+// not compile.
+const brokenFallback = `                        view.loadUrl(fallbackUrl);`;
+const fixedFallback = `                        final String fallbackTarget = fallbackUrl;
+                        cordova.getActivity().runOnUiThread(new Runnable() {
+                            public void run() {
+                                if (inAppWebView != null) inAppWebView.loadUrl(fallbackTarget);
+                            }
+                        });`;
+if (code.includes(brokenFallback)) {
+  code = code.replace(brokenFallback, fixedFallback);
+  console.log('Repaired fallback-URL call to use inAppWebView on the UI thread');
+}
+
 fs.writeFileSync(pluginJavaFile, code, 'utf-8');
 console.log('Successfully patched InAppBrowser.java');

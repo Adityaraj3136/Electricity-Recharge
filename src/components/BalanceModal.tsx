@@ -66,19 +66,9 @@ export function BalanceModal({
 
           {/* ── Cached-data notice (PWA only) ── */}
           {isCached && (
-            <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-              <div className="flex items-center gap-2 text-amber-700 text-xs font-medium">
-                <Clock size={13} className="flex-shrink-0" />
-                Cached balance — may not reflect latest recharge
-              </div>
-              <a
-                href={portalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs font-bold text-primary-600 underline underline-offset-2 whitespace-nowrap"
-              >
-                Live check <ExternalLink size={11} />
-              </a>
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-amber-700 text-xs font-medium">
+              <Clock size={13} className="flex-shrink-0" />
+              Last saved balance — may not reflect latest recharge
             </div>
           )}
 
@@ -193,14 +183,14 @@ export function BalanceModal({
           </div>
         </div>
       ) : (
-        /* No cached data yet (PWA first launch) */
+        /* Balance unavailable — fetch failed and nothing was saved earlier */
         <div className="text-center py-8 px-4">
           <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <Clock size={26} className="text-amber-500" />
           </div>
-          <p className="font-semibold text-gray-900 mb-1">No cached balance</p>
+          <p className="font-semibold text-gray-900 mb-1">Balance unavailable</p>
           <p className="text-gray-500 text-sm mb-5">
-            Balance fetch requires the Android app. Once fetched, it will be available here too.
+            Could not reach SBPDCL just now. Try again, or check the portal directly.
           </p>
           <a
             href={portalUrl}
