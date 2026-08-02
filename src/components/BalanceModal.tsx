@@ -34,7 +34,12 @@ export function BalanceModal({
   // Reset field when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setPayAmount(defaultAmount || '');
+      // A bill has an exact amount owed, so offer it rather than a blank box.
+      // A saved preferred amount still wins if there is one.
+      const owed = /post/i.test(details?.consumerType || '')
+        ? String(Math.ceil(parseFloat((details?.availableBalance || '').replace(/[^0-9.-]/g, '')) || 0))
+        : '';
+      setPayAmount(defaultAmount || (owed !== '0' ? owed : ''));
       setAmountError('');
     } else {
       setPayAmount('');
@@ -72,13 +77,18 @@ export function BalanceModal({
 
   const isAmountValid = !!payAmount && parseInt(payAmount) >= 100;
 
+  /** Postpaid connections owe a bill; the same field carries what is due
+      rather than what is left, so it has to be labelled differently. */
+  const isPostpaid = /post/i.test(details?.consumerType || '');
+  const dueAmount = parseFloat((details?.availableBalance || '').replace(/[^0-9.-]/g, '')) || 0;
+
   const portalUrl = `https://wss.sbpdcl.co.in/cportal/#/guest/secure/searchbill`;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={mode === 'recharge' ? 'Recharge Details' : 'Balance Details'}
+      title={mode === 'recharge' ? (isPostpaid ? 'Bill Payment' : 'Recharge Details') : (isPostpaid ? 'Bill Details' : 'Balance Details')}
       /* Wider from md up so the recharge form fits inside 90vh without
          scrolling on a laptop; the phone width is unchanged. */
       maxWidth="sm:max-w-md md:max-w-2xl"
@@ -135,14 +145,17 @@ export function BalanceModal({
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl p-4 shadow-sm flex flex-col justify-between">
               <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 text-xs mb-1 font-medium uppercase tracking-wider">
-                <CreditCard size={14} /> Balance
+                <CreditCard size={14} /> {isPostpaid ? 'Amount Due' : 'Balance'}
               </div>
               {/* An empty balance means the meter has not reported, which is not
                   the same as a balance of zero — showing ₹0.00 there would read
                   as an empty meter and prompt a needless recharge. Overdrawn
                   meters report negatives, hence the leading "-" check. */}
+              {/* Postpaid inverts the colour: money owed is not good news, and
+                  zero owed is. Prepaid keeps credit green, overdrawn red. */}
               <div className={`text-xl font-bold ${
                 !details.availableBalance ? 'text-gray-400 dark:text-gray-500 text-base'
+                  : isPostpaid ? (dueAmount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600')
                   : details.availableBalance.startsWith('-') ? 'text-red-600'
                   : 'text-green-600'
               }`}>
@@ -185,7 +198,7 @@ export function BalanceModal({
             <div className="bg-white dark:bg-slate-800 border-2 border-primary-100 dark:border-slate-700 rounded-xl p-4 md:p-3.5 shadow-sm space-y-4 md:space-y-3">
               <div>
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">
-                  Amount to Pay
+                  {isPostpaid ? 'Amount to Pay (bill due)' : 'Amount to Pay'}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">

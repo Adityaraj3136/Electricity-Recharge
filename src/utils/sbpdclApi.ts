@@ -203,6 +203,11 @@ async function fetchPrepaidInfo(ca: string, vendor: string): Promise<any | null>
   }
 }
 
+/** Postpaid connections owe a bill; prepaid ones carry a balance. */
+function isPostpaid(bill: any): boolean {
+  return /post/i.test(pick(bill, 'consumerType'));
+}
+
 /** "2026-07-28 16:55:08.0" → "28/07/2026" */
 function formatTransactionDate(raw: string): string {
   const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -216,6 +221,32 @@ function formatTransactionDate(raw: string): string {
 export async function fetchBalanceFromApi(caNumber: string): Promise<BalanceDetails> {
   const ca = normaliseCa(caNumber);
   const bill = await fetchBillDetails(ca);
+
+  // Postpaid connections have no prepaid balance to read -- prepaidBalance is 0
+  // and the AMISP knows nothing about them. What matters is what is owed, so
+  // the outstanding amount takes the place of the balance and the UI labels it
+  // from consumerType.
+  if (isPostpaid(bill)) {
+    const lastTxn = await fetchLastTransaction(ca);
+    const due = pick(bill, 'outStandingAmt', 'amountPayble') || '0';
+    const txnDate = lastTxn ? pick(lastTxn, 'CollectionDate') : '';
+    const txnAmount = lastTxn ? pick(lastTxn, 'Amount') : '';
+    return {
+      caNumber: pick(bill, 'scno') || ca,
+      name: pick(bill, 'name', 'consumerName'),
+      division: pick(bill, 'divisionName', 'division'),
+      subDivision: pick(bill, 'subDivisionName', 'subDivision'),
+      lastRechargeDate: txnDate ? formatTransactionDate(txnDate) : 'N/A',
+      lastRechargeAmount: txnAmount ? formatRupees(txnAmount) : 'N/A',
+      consumerType: pick(bill, 'consumerType') || 'Postpaid',
+      currentStatus: pick(bill, 'connectionStatus') || 'N/A',
+      // A zero here is real and good news -- nothing owed -- unlike the zero a
+      // prepaid bill carries, which only means "not the field you want".
+      availableBalance: formatRupees(due),
+      amispVendor: pick(bill, 'vendor', 'amispName'),
+    };
+  }
+
   // The AMISP lookup keys off the vendor named on the bill, so it can only run
   // once the bill is in hand.
   const [prepaid, lastTxn] = await Promise.all([
@@ -269,10 +300,10 @@ const GATEWAY_KEYS: Record<string, string> = {
  * Gateways are configured server-side and their ids are not stable, so the list
  * is fetched rather than hardcoded. Type "R" is the recharge list.
  */
-async function fetchGatewayId(preferred?: string): Promise<string> {
+async function fetchGatewayId(preferred?: string, type: 'R' | 'B' = 'R'): Promise<string> {
   const response = await postJson(
     CONFIG_URL,
-    encryptBootstrap(JSON.stringify({ action: 'getPaymentGatewayList', type: 'R' }))
+    encryptBootstrap(JSON.stringify({ action: 'getPaymentGatewayList', type }))
   );
   const gateways: any[] = response?.data ?? [];
   if (!gateways.length) throw new Error('SBPDCL returned no payment gateways.');
@@ -325,22 +356,34 @@ export async function createRechargeOrder(opts: {
     throw new Error('Minimum recharge amount is ₹100.');
   }
 
-  const [bill, gatewayId] = await Promise.all([fetchBillDetails(ca), fetchGatewayId(opts.gateway)]);
+  // The bill decides which kind of payment this is, so it has to come first.
+  const bill = await fetchBillDetails(ca);
+  const postpaid = isPostpaid(bill);
+  const gatewayId = await fetchGatewayId(opts.gateway, postpaid ? 'B' : 'R');
+  const billNo = pick(bill, 'billNo');
 
+  // Two shapes, mirroring the portal's own submit handlers:
+  //   prepaid  -> paymentType "R", billid is the service number
+  //   postpaid -> paymentType "B", billid is the bill number, and ucode /
+  //               officeid / officeName carry the service number (the portal's
+  //               guest branch does exactly this; its logged-in branch fills
+  //               them from an office lookup a guest cannot reach).
+  // consType is "POST" in both -- it is not the prepaid/postpaid switch, which
+  // is easy to misread. paymentType is.
   const response = await callAction({
     email: opts.email || 'NA',
     accno: ca,
     mobile: opts.mobileNumber || 'NA',
     amount,
     scno: ca,
-    consid: pick(bill, 'billNo'),
+    consid: billNo,
     name: pick(bill, 'name'),
-    billid: ca,
-    ucode: 'NA',
-    officeid: 'NA',
-    officeName: 'NA',
+    billid: postpaid ? billNo : ca,
+    ucode: postpaid ? ca : 'NA',
+    officeid: postpaid ? ca : 'NA',
+    officeName: postpaid ? ca : 'NA',
     from: 'DASHBOARD',
-    paymentType: 'R',
+    paymentType: postpaid ? 'B' : 'R',
     consType: 'POST',
     gateway: gatewayId,
   }, PG_REQUEST_URL);

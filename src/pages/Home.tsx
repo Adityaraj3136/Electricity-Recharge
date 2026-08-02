@@ -363,6 +363,10 @@ export function Home() {
   const checkAndNotifyLowBalance = async (details: BalanceDetails, consumerName: string) => {
     // Only notify if user has enabled low balance alerts
     if (!settings.reminderEnabled) return;
+    // On a postpaid connection this field holds the amount owed, not what is
+    // left. A small bill would otherwise read as a nearly empty meter and fire
+    // "recharge now to avoid power cut".
+    if (/post/i.test(details.consumerType || '')) return;
     try {
       // Preserve the minus sign so negative (overdrawn) balances are not treated as positive.
       // e.g. "-₹500.00" → "-500" → parseFloat → -500 → correctly < 100 → alert fires.
