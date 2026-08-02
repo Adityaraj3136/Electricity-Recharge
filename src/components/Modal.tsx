@@ -72,7 +72,9 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'sm:max-w-m
               <X size={20} />
             </button>
           </div>
-          <div className="p-6 overflow-y-auto">
+          {/* overflow-y-auto stays: no-scrollbar only hides the bar, it does
+              not change how the panel scrolls. */}
+          <div className="p-6 overflow-y-auto no-scrollbar">
             {children}
           </div>
         </div>

@@ -131,4 +131,26 @@
   .interactive-scale {
     @apply transition-transform duration-150 ease-out active:scale-[0.97];
   }
+
+  /*
+   * Hide the scrollbar track without disabling scrolling.
+   *
+   * The element keeps its `overflow-y: auto`, so the wheel, touch drag, arrow
+   * keys, Page Up/Down and Home/End all behave exactly as before — only the
+   * visual bar is suppressed. Do NOT swap this for `overflow: hidden`, which
+   * would also kill the scrolling.
+   *
+   * Three declarations because no single one covers every engine: Firefox uses
+   * scrollbar-width, WebKit/Blink only respond to the ::-webkit-scrollbar
+   * pseudo-element, and -ms-overflow-style is there for legacy Edge/IE.
+   */
+  .no-scrollbar {
+    scrollbar-width: none;        /* Firefox */
+    -ms-overflow-style: none;     /* legacy Edge / IE */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;                /* Chrome, Safari, Edge, Android WebView */
+    width: 0;
+    height: 0;
+  }
 }
