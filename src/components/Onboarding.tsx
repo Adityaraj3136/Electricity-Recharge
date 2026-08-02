@@ -15,6 +15,9 @@ const slides = [
     titleHighlight: 'SBPDCL Bills',
     desc: 'Check your live balance and recharge in just a few taps. No more long queues or website hassles.',
     dotColor: 'bg-blue-500',
+    // Matches the slide gradient. A literal class, not a computed one, so
+    // Tailwind's scanner actually emits it.
+    buttonText: 'text-blue-700',
   },
   {
     icon: '🔒',
@@ -24,6 +27,7 @@ const slides = [
     titleHighlight: 'On Your Phone',
     desc: 'No accounts, no logins, no cloud storage. Your CA number and details never leave your device.',
     dotColor: 'bg-emerald-500',
+    buttonText: 'text-emerald-700',
   },
   {
     icon: '🚀',
@@ -33,6 +37,7 @@ const slides = [
     titleHighlight: 'CA Number',
     desc: 'Tap "Get Started" to save your first meter. You can add multiple meters for your whole family!',
     dotColor: 'bg-violet-500',
+    buttonText: 'text-violet-700',
   },
 ];
 
@@ -89,7 +94,7 @@ export function Onboarding({ onDone }: OnboardingProps) {
       {!isLast && (
         <button
           onClick={handleDone}
-          className="absolute top-12 right-6 text-white/70 text-sm font-medium px-3 py-1.5 rounded-full border border-white/20 hover:bg-white/10 transition-all z-10"
+          className="absolute top-12 right-6 text-white/90 text-sm font-medium px-3 py-1.5 rounded-full border border-white/40 hover:bg-white/10 transition-all z-10"
         >
           Skip
         </button>
@@ -106,7 +111,7 @@ export function Onboarding({ onDone }: OnboardingProps) {
         </div>
 
         {/* Badge */}
-        <span className="inline-block px-4 py-1 rounded-full bg-white/20 text-white/90 text-xs font-bold tracking-widest uppercase mb-4 border border-white/30">
+        <span className="inline-block px-4 py-1 rounded-full bg-white/25 text-white text-xs font-bold tracking-widest uppercase mb-4 border border-white/30">
           {slide.badge}
         </span>
 
@@ -117,7 +122,7 @@ export function Onboarding({ onDone }: OnboardingProps) {
         </h1>
 
         {/* Description */}
-        <p className="text-white/80 text-base leading-relaxed max-w-xs mt-4">
+        <p className="text-white/90 text-base leading-relaxed max-w-xs mt-4">
           {slide.desc}
         </p>
       </div>
@@ -131,17 +136,22 @@ export function Onboarding({ onDone }: OnboardingProps) {
               key={i}
               onClick={() => setCurrent(i)}
               className={`rounded-full transition-all duration-300 ${
-                i === current ? 'w-8 h-2.5 bg-white' : 'w-2.5 h-2.5 bg-white/40'
+                i === current ? 'w-8 h-2.5 bg-white' : 'w-2.5 h-2.5 bg-white/60'
               }`}
             />
           ))}
         </div>
 
         {/* Action button */}
+        {/* The label colour must be a real class. This previously read
+            `color: var(--tw-gradient-from, #2563eb)`, but that is a Tailwind
+            internal set on the gradient div, and it is registered with
+            `inherits: false; initial-value: #0000`. A registered property
+            always has a value, so the fallback never applied and the label
+            resolved to transparent — invisible white-on-white. */}
         <button
           onClick={goNext}
-          className="w-full max-w-xs py-4 rounded-2xl bg-white font-bold text-lg shadow-2xl active:scale-95 transition-all duration-150"
-          style={{ color: 'var(--tw-gradient-from, #2563eb)' }}
+          className={`w-full max-w-xs py-4 rounded-2xl bg-white font-bold text-lg shadow-2xl active:scale-95 transition-all duration-150 ${slide.buttonText}`}
         >
           {isLast ? '🚀 Get Started' : 'Next →'}
         </button>
