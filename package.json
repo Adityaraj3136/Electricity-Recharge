@@ -6,8 +6,6 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:pages": "tsc -b && vite build --base=/Electricity-Recharge/",
-    "deploy": "npm run build:pages && node scripts/prepare-pages.cjs && gh-pages -d dist -t",
     "lint": "oxlint",
     "preview": "vite preview",
     "postinstall": "node scripts/patch-inappbrowser.cjs"
