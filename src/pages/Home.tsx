@@ -904,13 +904,10 @@ export function Home() {
         {/* Nav links */}
         <div className="flex items-center gap-1">
           {[
-            // Desktop is one continuous page -- the meters list is always
-            // rendered here, and the activeTab switch only drives the mobile
-            // layout. So these scroll rather than change tabs; setting the tab
-            // would do nothing visible and scrolling to the top would move
-            // away from the very list the link is named after.
-            { label: lang === 'en' ? 'Home' : 'होम', active: true, onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-            { label: lang === 'en' ? 'Meters' : 'मीटर', active: false, onClick: () => document.getElementById('meters-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+            // Meters is a real view on desktop now, not an anchor, so these
+            // switch tabs exactly like the mobile bottom nav does.
+            { label: lang === 'en' ? 'Home' : 'होम', active: activeTab === 'home', onClick: () => { setActiveTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); } },
+            { label: lang === 'en' ? 'Meters' : 'मीटर', active: activeTab === 'meters', onClick: () => { setActiveTab('meters'); window.scrollTo({ top: 0, behavior: 'smooth' }); } },
             { label: lang === 'en' ? 'Help' : 'सहायता', active: false, onClick: () => setIsHelpOpen(true) },
             { label: lang === 'en' ? 'About' : 'के बारे में', active: false, onClick: () => setIsAboutOpen(true) },
           ].map((item) => (
@@ -984,7 +981,7 @@ export function Home() {
       {/* ════════════════════════════════════════════════════════
           HERO SECTION
       ════════════════════════════════════════════════════════ */}
-      <section className={`relative overflow-hidden ${isDark ? 'bg-[#0e1726]' : 'bg-gradient-to-br from-[#e8f0fe] via-[#f0f5ff] to-[#e8f0fe]'} ${activeTab === 'meters' ? 'hidden md:block' : ''}`}>
+      <section className={`relative overflow-hidden ${isDark ? 'bg-[#0e1726]' : 'bg-gradient-to-br from-[#e8f0fe] via-[#f0f5ff] to-[#e8f0fe]'} ${activeTab === 'meters' ? 'hidden' : ''}`}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-8 md:py-12 flex flex-col md:flex-row items-center gap-6 md:gap-10">
 
           {/* Left — text */}
@@ -1033,9 +1030,9 @@ export function Home() {
       ════════════════════════════════════════════════════════ */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-6 pb-28 md:pb-10 space-y-8">
 
-        {/* ════ METERS TAB VIEW (mobile only) ════ */}
+        {/* ════ METERS TAB VIEW ════ */}
         {activeTab === 'meters' && (
-          <section className="md:hidden">
+          <section>
             {/* Header */}
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -1189,8 +1186,8 @@ export function Home() {
           </section>
         )}
 
-        {/* ════ HOME TAB SECTIONS (always on desktop, conditional on mobile) ════ */}
-        <div className={activeTab === 'meters' ? 'hidden md:block' : ''}>
+        {/* ════ HOME TAB SECTIONS ════ */}
+        <div className={activeTab === 'meters' ? 'hidden' : ''}>
 
         {/* ── Saved Meters ──────────────────────────────────── */}
         <section id="meters-section" className="scroll-mt-20">
@@ -1514,8 +1511,23 @@ export function Home() {
       <Modal
         isOpen={!!payment}
         onClose={() => {
-          // Never close the gateway window from under a payment in progress.
-          if (payment?.status === 'paying' || payment?.status === 'checking') return;
+          // Escape, the backdrop and the ✕ all arrive here, so one guard covers
+          // every way out.
+          //
+          // Mid-payment this used to return silently, which read as the app
+          // being frozen -- the user pressed Escape and nothing happened, with
+          // no reason given. Ask instead, and be honest about what closing
+          // does: the payment itself is on the gateway and carries on
+          // regardless; what stops is this app watching it and refreshing the
+          // balance afterwards.
+          if (payment?.status === 'paying' || payment?.status === 'checking') {
+            const proceed = window.confirm(
+              lang === 'en'
+                ? `A payment is still in progress.\n\nClosing this will not cancel it — if you have already paid, the payment still goes through. It only stops the app from tracking it and refreshing your balance.\n\nClose anyway?`
+                : `भुगतान अभी चल रहा है।\n\nइसे बंद करने से भुगतान रद्द नहीं होगा — यदि आपने भुगतान कर दिया है तो वह पूरा होगा। बस ऐप उसे ट्रैक करना और बैलेंस अपडेट करना बंद कर देगा।\n\nफिर भी बंद करें?`
+            );
+            if (!proceed) return;
+          }
           payWindowRef.current = null;
           setPayment(null);
         }}
