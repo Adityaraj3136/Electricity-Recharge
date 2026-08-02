@@ -28,6 +28,51 @@ const isNative = (): boolean => {
   try { return !!(window as any).Capacitor?.isNativePlatform?.(); } catch { return false; }
 };
 
+// ─── Payment window ───────────────────────────────────────────────────────────
+const PAYMENT_WINDOW_NAME = 'bijli_payment';
+
+/**
+ * Phones and small tablets — a coarse pointer alone would catch touchscreen
+ * laptops, which have the room for a popup and should keep getting one.
+ */
+const isHandheld = (): boolean => {
+  try {
+    return window.matchMedia('(pointer: coarse)').matches && window.innerWidth < 820;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Open the payment gateway.
+ *
+ * Desktop gets a sized popup window: the gateway drops to a reduced set of
+ * payment options in a narrow viewport, so it is given room on purpose.
+ *
+ * Handhelds get a plain named tab in the same window instead. Popup features on
+ * a phone are either ignored or honoured as a detached window the user has to
+ * hunt for in the app switcher to get back from; a tab in the same window stays
+ * one back-gesture away from the app.
+ *
+ * Must be called synchronously from the click that triggered it or the popup
+ * blocker stops it — pass '' and navigate the window once the gateway URL
+ * arrives.
+ */
+function openPaymentWindow(url: string): Window | null {
+  if (isHandheld()) return window.open(url, PAYMENT_WINDOW_NAME);
+
+  // Roomy enough for the gateway's full desktop layout.
+  const width = Math.min(1024, Math.max(900, window.outerWidth - 200));
+  const height = Math.min(860, Math.max(700, window.outerHeight - 120));
+  const left = window.screenX + Math.max(0, (window.outerWidth - width) / 2);
+  const top = window.screenY + Math.max(0, (window.outerHeight - height) / 2);
+  return window.open(
+    url,
+    PAYMENT_WINDOW_NAME,
+    `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+  );
+}
+
 // ─── Avatar colour palette ─────────────────────────────────────────────────
 const AVATAR_GRADIENTS = [
   'from-violet-500 to-purple-700',
@@ -346,23 +391,11 @@ export function Home() {
     // payment itself is always completed by the user on the gateway.
     import('@capacitor/core').then(async ({ Capacitor }) => {
       if (!Capacitor.isNativePlatform()) {
-        // Opened as a popup window rather than a tab. It cannot be an in-page
-        // modal: the gateway sends X-Frame-Options: SAMEORIGIN, so any attempt
-        // to iframe it is blocked by the browser.
-        // The window must be opened synchronously with the click that triggered
-        // this, or the popup blocker stops it — so open it now and navigate it
-        // once the gateway URL arrives.
-        // Roomy enough for the gateway's full desktop layout — a narrow window
-        // makes it fall back to a reduced set of payment options.
-        const popupWidth = Math.min(1024, Math.max(900, window.outerWidth - 200));
-        const popupHeight = Math.min(860, Math.max(700, window.outerHeight - 120));
-        const popupLeft = window.screenX + Math.max(0, (window.outerWidth - popupWidth) / 2);
-        const popupTop = window.screenY + Math.max(0, (window.outerHeight - popupHeight) / 2);
-        const payWindow = window.open(
-          '',
-          'bijli_payment',
-          `popup=yes,width=${popupWidth},height=${popupHeight},left=${popupLeft},top=${popupTop},resizable=yes,scrollbars=yes`
-        );
+        // It cannot be an in-page modal: the gateway sends
+        // X-Frame-Options: SAMEORIGIN, so any attempt to iframe it is blocked.
+        // Opened empty right here — synchronously with the click — and navigated
+        // once the gateway URL arrives, or the popup blocker stops it.
+        const payWindow = openPaymentWindow('');
         setIsRecharging(true);
         const balanceBefore = consumer.lastFetchedBalance ?? sessionBalances[consumer.id]?.balance ?? null;
         setPayment({ consumer, amount: Number(finalAmount), status: 'starting', url: '', balanceBefore });
@@ -1476,7 +1509,7 @@ export function Home() {
                 <button
                   type="button"
                   onClick={() => {
-                    const win = window.open(payment.url, 'bijli_payment', 'popup=yes,width=1000,height=820,resizable=yes,scrollbars=yes');
+                    const win = openPaymentWindow(payment.url);
                     if (win) {
                       payWindowRef.current = win;
                       setPayment(p => (p ? { ...p, status: 'paying' } : p));
