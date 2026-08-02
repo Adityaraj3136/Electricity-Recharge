@@ -3,6 +3,7 @@ import { Modal } from './Modal';
 import { useConsumers } from '../hooks/useConsumers';
 import { useSettings } from '../hooks/useSettings';
 import { storage } from '../storage';
+import { sanitizeImportedConsumer } from '../utils/sanitize';
 import {
   Download, Upload, Moon, Sun, Info, Shield,
   ChevronRight, Lock, Bell, BellOff, AlertTriangle, CheckCircle2, Type, Trash2, Mail
@@ -180,13 +181,24 @@ export function SettingsModal({ isOpen, onClose, onOpenAbout }: SettingsModalPro
     reader.onload = (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        if (Array.isArray(json)) {
-          storage.saveConsumers(json);
-          refresh();
-          alert('✅ Backup restored successfully!');
-        } else {
+        if (!Array.isArray(json)) {
           alert('❌ Invalid backup format. [ERR_DAT_01]');
+          return;
         }
+        // A backup file is untrusted input: it can be hand-edited, or come
+        // from someone else entirely. Every entry is whitelisted down to
+        // known fields and re-sanitised rather than written to storage as-is.
+        const cleaned = json.map(sanitizeImportedConsumer).filter(Boolean);
+        if (cleaned.length === 0) {
+          alert('❌ No usable meters in that file. [ERR_DAT_01]');
+          return;
+        }
+        storage.saveConsumers(cleaned as any);
+        refresh();
+        const dropped = json.length - cleaned.length;
+        alert(dropped > 0
+          ? `✅ Restored ${cleaned.length} meter(s). ${dropped} entr${dropped === 1 ? 'y was' : 'ies were'} skipped as unreadable.`
+          : '✅ Backup restored successfully!');
       } catch {
         alert('❌ Error reading backup file. [ERR_DAT_02]');
       }

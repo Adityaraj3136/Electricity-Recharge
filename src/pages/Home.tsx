@@ -60,19 +60,40 @@ const isHandheld = (): boolean => {
  * blocker stops it — pass '' and navigate the window once the gateway URL
  * arrives.
  */
+/**
+ * Cut the child's back-reference to this page.
+ *
+ * A window opened with window.open can reach us through window.opener and
+ * navigate us -- `opener.location = 'https://look-alike/'` -- while the user is
+ * looking at the gateway. That is reverse tabnabbing, and it matters more here
+ * than usual because the page being spoofed would be a payment app.
+ *
+ * rel="noopener" is not an option: that is for anchors, and window.open's
+ * noopener feature returns null, which would cost us the handle needed to
+ * navigate the window and watch for it closing. Clearing opener on the child
+ * while it is still the blank page we own does the same job and keeps the
+ * handle.
+ */
+function severOpener(win: Window | null): Window | null {
+  if (win) {
+    try { win.opener = null; } catch { /* already cross-origin; nothing to do */ }
+  }
+  return win;
+}
+
 function openPaymentWindow(url: string): Window | null {
-  if (isHandheld()) return window.open(url, PAYMENT_WINDOW_NAME);
+  if (isHandheld()) return severOpener(window.open(url, PAYMENT_WINDOW_NAME));
 
   // Roomy enough for the gateway's full desktop layout.
   const width = Math.min(1024, Math.max(900, window.outerWidth - 200));
   const height = Math.min(860, Math.max(700, window.outerHeight - 120));
   const left = window.screenX + Math.max(0, (window.outerWidth - width) / 2);
   const top = window.screenY + Math.max(0, (window.outerHeight - height) / 2);
-  return window.open(
+  return severOpener(window.open(
     url,
     PAYMENT_WINDOW_NAME,
     `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-  );
+  ));
 }
 
 /**
