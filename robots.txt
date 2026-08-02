@@ -1,0 +1,12 @@
+# Bijli Recharge — https://adityaraj3136.github.io/Electricity-Recharge/
+#
+# NOTE: this file is served at /Electricity-Recharge/robots.txt. Crawlers only
+# read robots.txt at the ORIGIN root, so the file that actually governs this
+# site is https://adityaraj3136.github.io/robots.txt, which lives in the
+# adityaraj3136.github.io repository, not this one. This copy is here for
+# completeness and for anyone self-hosting the app at a domain root.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://adityaraj3136.github.io/Electricity-Recharge/sitemap.xml
