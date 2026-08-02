@@ -17,6 +17,7 @@ import {
 import { SettingsModal } from '../components/SettingsModal';
 import { BalanceModal } from '../components/BalanceModal';
 import { HelpModal } from '../components/HelpModal';
+import { AboutModal } from '../components/AboutModal';
 import { Network } from '@capacitor/network';
 import { sanitizeText, sanitizeNumber, sanitizeForScript } from '../utils/sanitize';
 import { routePaymentWindowUrl } from '../utils/paymentWindowRouting';
@@ -145,6 +146,7 @@ export function Home() {
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isBalanceOpen, setIsBalanceOpen] = useState(false);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [balanceDetails, setBalanceDetails] = useState<BalanceDetails | null>(null);
@@ -836,7 +838,7 @@ export function Home() {
           {[
             { label: lang === 'en' ? 'Home' : 'होम', active: true, onClick: () => {} },
             { label: lang === 'en' ? 'Help' : 'सहायता', active: false, onClick: () => setIsHelpOpen(true) },
-            { label: lang === 'en' ? 'About' : 'के बारे में', active: false, onClick: () => showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!', 'success') },
+            { label: lang === 'en' ? 'About' : 'के बारे में', active: false, onClick: () => setIsAboutOpen(true) },
           ].map((item) => (
             <button
               key={item.label}
@@ -1362,7 +1364,8 @@ export function Home() {
           <div className="flex items-center gap-6">
             <button onClick={() => window.scrollTo(0, 0)} className={`text-xs font-medium transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>{lang === 'en' ? 'Home' : 'होम'}</button>
             <button onClick={() => setIsHelpOpen(true)} className={`text-xs font-medium transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>{lang === 'en' ? 'Help' : 'सहायता'}</button>
-            <button onClick={() => showToast(lang === 'en' ? 'Coming soon!' : 'जल्द आ रहा है!')} className={`text-xs font-medium transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>{lang === 'en' ? 'Privacy' : 'गोपनीयता'}</button>
+            <button onClick={() => setIsAboutOpen(true)} className={`text-xs font-medium transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>{lang === 'en' ? 'Privacy' : 'गोपनीयता'}</button>
+            <button onClick={() => setIsAboutOpen(true)} className={`text-xs font-medium transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>{lang === 'en' ? 'About' : 'के बारे में'}</button>
           </div>
           <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>© 2026 {t.appName}.</p>
         </div>
@@ -1639,10 +1642,17 @@ export function Home() {
       )}
 
       {/* Settings Modal */}
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onOpenAbout={() => { setIsSettingsOpen(false); setIsAboutOpen(true); }}
+      />
 
       {/* Help Modal */}
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+
+      {/* About + Privacy */}
+      <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} lang={lang} />
 
       {/* Balance Modal */}
       <BalanceModal

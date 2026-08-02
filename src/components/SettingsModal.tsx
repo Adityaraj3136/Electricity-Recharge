@@ -71,14 +71,17 @@ async function requestNotificationPermission(): Promise<boolean> {
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Opens About & Privacy. Routed through here because the header and footer
+      links to it are desktop-only, and Settings is how phones reach it. */
+  onOpenAbout?: () => void;
 }
 
 type NotifStatus = 'idle' | 'requesting' | 'granted' | 'denied';
 
-export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, onOpenAbout }: SettingsModalProps) {
   const { consumers, refresh } = useConsumers();
   const { settings, updateSettings } = useSettings();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [notifStatus, setNotifStatus] = useState<NotifStatus>('idle');
   const [scheduleError, setScheduleError] = useState<string | null>(null);
@@ -507,6 +510,21 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </RowBtn>
           </div>
         </section>
+
+        {/* About & Privacy */}
+        {onOpenAbout && (
+          <button
+            type="button"
+            onClick={onOpenAbout}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            <span className="flex items-center gap-2.5 text-sm font-medium text-gray-800 dark:text-gray-100">
+              <Info size={16} className="text-primary-600 dark:text-primary-400" />
+              {lang === 'en' ? 'About & Privacy' : 'ऐप और गोपनीयता'}
+            </span>
+            <ChevronRight size={16} className="text-gray-400 dark:text-gray-500" />
+          </button>
+        )}
 
         {/* Version */}
         <p className="text-center text-xs text-gray-400 dark:text-gray-600 pb-2">
