@@ -36,41 +36,22 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
-      # The signing key lives only in repository secrets. ANDROID_KEYSTORE_BASE64
-      # is the .jks file base64-encoded:
-      #   base64 -w0 bijli-release.jks      (macOS: base64 -i bijli-release.jks)
-      - name: Decode release keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      - name: Cache Android Keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android
+          key: android-keystore
+
+      - name: Generate debug keystore
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::error::ANDROID_KEYSTORE_BASE64 secret is not set — refusing to build an unsigned release."
-            exit 1
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "C=US, O=Android, CN=Android Debug"
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > android/release.jks
-          echo "Keystore decoded ($(stat -c%s android/release.jks) bytes)"
 
       - name: Build Android Release APK
-        env:
-          ANDROID_KEYSTORE_PATH: release.jks
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
-          ANDROID_KEYSTORE_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_KEY_PASSWORD }}
         run: ./gradlew assembleRelease
         working-directory: android
-
-      - name: Verify the APK is signed with the release key
-        run: |
-          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
-          "$APKSIGNER" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | tee certs.txt
-          if grep -q "CN=Android Debug" certs.txt; then
-            echo "::error::APK is debug-signed — the release keystore was not applied."
-            exit 1
-          fi
-
-      - name: Remove decoded keystore
-        if: always()
-        run: rm -f android/release.jks
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

@@ -342,41 +342,16 @@ Android — the launch fails silently.
 
 ## 9. Workflow: signing & release
 
-> **The release key cannot be rotated.** Lose it and you can never update an existing
-> Play listing. Leak it and anyone can publish builds that appear to be yours.
-> **Back the `.jks` up somewhere off your build machine.**
+`assembleRelease` signs with the **debug keystore** (`~/.android/debug.keystore`,
+alias `androiddebugkey`, password `android`). No secrets, no setup — the APK
+installs on any device straight from the CI artifact.
 
-### One-time setup
+The trade-offs of that, so they are not a surprise later:
 
-```bash
-cd android
-keytool -genkeypair -v -keystore bijli-release.jks -alias bijli \
-        -keyalg RSA -keysize 4096 -validity 10000
-cp keystore.properties.example keystore.properties     # then fill in your passwords
-```
-
-`android/keystore.properties` (git-ignored):
-
-```properties
-storeFile=bijli-release.jks     # resolved relative to android/
-storePassword=...
-keyAlias=bijli
-keyPassword=...
-```
-
-CI uses env vars instead: `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`,
-`ANDROID_KEYSTORE_ALIAS`, `ANDROID_KEYSTORE_KEY_PASSWORD`.
-
-### Behaviour
-
-- **No keystore → the release APK is left UNSIGNED** (`app-release-unsigned.apk`).
-  It deliberately does *not* fall back to the debug key: a debug-signed "release" is
-  rejected by Play and re-signable by anyone, and that used to be the silent default.
-- Every release build announces the key it used:
-
-```
-[signing] release APK signed with bijli (from keystore.properties)
-```
+- Google Play **rejects** debug-signed uploads. Publishing there needs a real key.
+- A debug-signed APK can be re-signed by anyone, so don't treat it as tamper-proof.
+- Switching to a real key later means uninstalling the debug-signed build first —
+  Android refuses to upgrade across different signing keys.
 
 ### Verify any APK
 
@@ -384,8 +359,7 @@ CI uses env vars instead: `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`,
 $ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs <apk>
 ```
 
-`CN=Android Debug` means it is **not** release-signed. A debug-signed build also cannot
-upgrade over a differently-signed install — uninstall first.
+`CN=Android Debug` confirms the debug key, which is what this project ships.
 
 ---
 
@@ -393,20 +367,10 @@ upgrade over a differently-signed install — uninstall first.
 
 ### `.github/workflows/android.yml` — APK, on push to `main`
 
-JDK 21 + Node 22 → `npm ci` → `npm run build` → `npx cap sync android` → decode the
-keystore from secrets → `assembleRelease` → **verify the APK is not debug-signed**
-(fails the job if it is) → upload artifact → delete the decoded key in an `always()` step.
+JDK 21 + Node 22 → `npm ci` → `npm run build` → `npx cap sync android` → generate a
+debug keystore if the cache misses → `assembleRelease` → upload artifact.
 
-Required repository secrets:
-
-| Secret | How to produce it |
-|---|---|
-| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 bijli-release.jks` (macOS: `base64 -i …`) |
-| `ANDROID_KEYSTORE_PASSWORD` | keystore password |
-| `ANDROID_KEYSTORE_ALIAS` | e.g. `bijli` |
-| `ANDROID_KEYSTORE_KEY_PASSWORD` | key password |
-
-Without `ANDROID_KEYSTORE_BASE64` the job fails on purpose rather than shipping unsigned.
+No repository secrets required.
 
 **To get an APK:** Actions tab → latest successful run → download the
 `sbpdcl-family-recharge-app` artifact.
@@ -463,17 +427,15 @@ consumer's account. Always stub.
 
 | Item | Where it lives | Notes |
 |---|---|---|
-| Release keystore `.jks` | `android/` (git-ignored) + your own off-machine backup | **Irreplaceable** |
-| Keystore + key passwords | `android/keystore.properties` (git-ignored) | Never commit |
-| CI copies of both | GitHub repository secrets | See §10 |
+| Signing key | Debug keystore only — see §9 | No secret to manage |
 | `fgwebcp@2020` | `src/utils/sbpdclApi.ts` | SBPDCL's own public constant, not ours |
 | SBPDCL RSA public key | Fetched at runtime | Not hardcoded, so rotation self-heals |
 
 There is **no SBPDCL account, API key or login** — the guest flow needs only a CA number.
 
-`.gitignore` covers `*.jks`, `*.keystore`, `android/keystore.properties` (with the
-`.example` negated), `android/local.properties`, `*.apk`, `build-output/`, and all
-Android build directories.
+`.gitignore` still covers `*.jks`, `*.keystore`, `android/keystore.properties`,
+`android/local.properties`, `*.apk`, `build-output/`, and all Android build
+directories — so a real key stays uncommittable if one is added later.
 
 **User data:** CA numbers and mobile numbers are stored **unencrypted** in
 `localStorage`. The `biometricLock` setting gates the UI, not the data.
@@ -502,7 +464,6 @@ android/
   app/src/main/AndroidManifest.xml   <queries> for UPI apps
   app/src/main/res/xml/config.xml    AllowedSchemes for UPI apps
   app/src/main/res/xml/network_security_config.xml
-  keystore.properties.example
 
 scripts/patch-inappbrowser.cjs   Mandatory Cordova plugin patch (§8)
 public/sbpdcl-automation.js      Bookmarklet bundle, generated by gen-bundle.cjs
