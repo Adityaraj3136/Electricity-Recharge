@@ -18,7 +18,7 @@
 import CryptoJS from 'crypto-js';
 import { JSEncrypt } from 'jsencrypt';
 import type { BalanceDetails } from '../types';
-import { pick, selectBalance } from './sbpdclFields';
+import { formatRupees, pick, selectBalance } from './sbpdclFields';
 
 const API_BASE = 'https://wss.sbpdcl.co.in/fgweb/web/';
 const CONFIG_URL = API_BASE + 'json/plugin/com.fluentgrid.cp.api.CPCommonConfigService/service';
@@ -123,13 +123,6 @@ function unwrap(response: any): any {
   const data = first?.data ?? first;
   if (Array.isArray(data?.ConsumerData)) return data.ConsumerData[0] ?? {};
   return data;
-}
-
-function formatRupees(value: string): string {
-  if (!value) return '';
-  const amount = parseFloat(value.replace(/[^0-9.-]/g, ''));
-  if (isNaN(amount)) return value;
-  return `₹${amount.toFixed(2)}`;
 }
 
 function normaliseCa(caNumber: string): string {

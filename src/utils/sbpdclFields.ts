@@ -25,6 +25,22 @@ export function pick(source: any, ...names: string[]): string {
 }
 
 /**
+ * Render a raw amount as rupees.
+ *
+ * Prepaid meters go negative once they overdraw, and the sign belongs outside
+ * the symbol: "-₹50.25", not "₹-50.25". Everything downstream already assumes
+ * that form — the low-balance check strips to `[0-9.-]` and parses, and the
+ * modal colours the row red on a "-" — so keeping the minus leading is what
+ * makes an overdrawn meter read correctly rather than as a large credit.
+ */
+export function formatRupees(value: string): string {
+  if (!value) return '';
+  const amount = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+  if (isNaN(amount)) return value;
+  return `${amount < 0 ? '-' : ''}₹${Math.abs(amount).toFixed(2)}`;
+}
+
+/**
  * Choose which of the two responses actually carries the meter's balance.
  *
  * The live reading comes from the AMISP's `current_balance`. `fetchBillDetails`

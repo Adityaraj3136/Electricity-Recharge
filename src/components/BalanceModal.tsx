@@ -97,8 +97,16 @@ export function BalanceModal({
               <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1 font-medium uppercase tracking-wider">
                 <CreditCard size={14} /> Balance
               </div>
-              <div className={`text-xl font-bold ${details.availableBalance.includes('-') ? 'text-red-600' : 'text-green-600'}`}>
-                {details.availableBalance || '₹0.00'}
+              {/* An empty balance means the meter has not reported, which is not
+                  the same as a balance of zero — showing ₹0.00 there would read
+                  as an empty meter and prompt a needless recharge. Overdrawn
+                  meters report negatives, hence the leading "-" check. */}
+              <div className={`text-xl font-bold ${
+                !details.availableBalance ? 'text-gray-400 text-base'
+                  : details.availableBalance.startsWith('-') ? 'text-red-600'
+                  : 'text-green-600'
+              }`}>
+                {details.availableBalance || 'Not reported yet'}
               </div>
             </div>
 

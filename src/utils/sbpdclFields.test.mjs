@@ -6,7 +6,7 @@
  * Run: node src/utils/sbpdclFields.test.mjs
  */
 import assert from 'node:assert';
-import { pick, selectBalance } from './sbpdclFields.ts';
+import { formatRupees, pick, selectBalance } from './sbpdclFields.ts';
 
 // Real shapes, captured from CA 23330007524.
 const BILL = {
@@ -48,5 +48,26 @@ assert.strictEqual(selectBalance({ current_balance: '-' }, BILL), '');
 // A non-zero bill figure is still a usable fallback (postpaid / older records).
 assert.strictEqual(selectBalance(null, { availableBalance: '340.00' }), '340.00');
 assert.strictEqual(selectBalance(AMISP_NO_READING, { prepaidBalance: 512 }), '512');
+
+// An overdrawn meter must read as a debt, not as a large credit. The minus goes
+// outside the symbol, which is the form Home.tsx's low-balance check and the
+// modal's red-text rule both assume.
+assert.strictEqual(formatRupees('-50.25'), '-₹50.25');
+assert.strictEqual(formatRupees('-1234.5'), '-₹1234.50');
+assert.strictEqual(formatRupees('247.65'), '₹247.65');
+assert.strictEqual(formatRupees('0'), '₹0.00');
+assert.strictEqual(formatRupees(''), '');
+
+// The low-balance alert parses the rendered string back to a number; an
+// overdrawn meter has to come out negative or the alert silently never fires.
+const parseBack = (s) => parseFloat(s.replace(/[^0-9.-]/g, ''));
+assert.strictEqual(parseBack(formatRupees('-50.25')), -50.25);
+assert.ok(parseBack(formatRupees('-50.25')) < 100, 'overdrawn meter must trip the low-balance alert');
+
+// End to end: an overdrawn AMISP reading survives pick → selectBalance → format.
+assert.strictEqual(
+  formatRupees(selectBalance({ ...AMISP_NO_READING, current_balance: '-75.40' }, BILL)),
+  '-₹75.40'
+);
 
 console.log('sbpdclFields: all assertions passed');
