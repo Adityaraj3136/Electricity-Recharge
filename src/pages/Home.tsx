@@ -904,8 +904,13 @@ export function Home() {
         {/* Nav links */}
         <div className="flex items-center gap-1">
           {[
-            { label: lang === 'en' ? 'Home' : 'होम', active: activeTab === 'home', onClick: () => { setActiveTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); } },
-            { label: lang === 'en' ? 'Meters' : 'मीटर', active: activeTab === 'meters', onClick: () => { setActiveTab('meters'); window.scrollTo({ top: 0, behavior: 'smooth' }); } },
+            // Desktop is one continuous page -- the meters list is always
+            // rendered here, and the activeTab switch only drives the mobile
+            // layout. So these scroll rather than change tabs; setting the tab
+            // would do nothing visible and scrolling to the top would move
+            // away from the very list the link is named after.
+            { label: lang === 'en' ? 'Home' : 'होम', active: true, onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+            { label: lang === 'en' ? 'Meters' : 'मीटर', active: false, onClick: () => document.getElementById('meters-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
             { label: lang === 'en' ? 'Help' : 'सहायता', active: false, onClick: () => setIsHelpOpen(true) },
             { label: lang === 'en' ? 'About' : 'के बारे में', active: false, onClick: () => setIsAboutOpen(true) },
           ].map((item) => (
@@ -1188,7 +1193,7 @@ export function Home() {
         <div className={activeTab === 'meters' ? 'hidden md:block' : ''}>
 
         {/* ── Saved Meters ──────────────────────────────────── */}
-        <section id="meters-section">
+        <section id="meters-section" className="scroll-mt-20">
           <div className="flex items-center justify-between mb-4">
             <h2 className={`text-lg font-bold ${textPrimary}`}>{t.home.savedMeters}</h2>
             <div className="flex items-center gap-4">
