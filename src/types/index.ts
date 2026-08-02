@@ -4,7 +4,7 @@ export interface Consumer {
   caNumber: string;
   mobileNumber?: string;
   preferredAmount?: string;
-  preferredGateway?: 'Bank of Baroda' | 'Federal Bank' | 'HDFC';
+  preferredGateway?: 'Bank of Baroda' | 'Easebuzz' | 'HDFC';
   lastFetchedBalance?: string;
   lastFetchedDate?: string;
   currentStatus?: string;

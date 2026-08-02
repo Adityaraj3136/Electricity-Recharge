@@ -21,6 +21,7 @@ import { AboutModal } from '../components/AboutModal';
 import { Network } from '@capacitor/network';
 import { sanitizeText, sanitizeNumber, sanitizeForScript } from '../utils/sanitize';
 import { routePaymentWindowUrl } from '../utils/paymentWindowRouting';
+import type { PaymentEntry } from '../utils/sbpdclApi';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { App } from '@capacitor/app';
 
@@ -72,6 +73,42 @@ function openPaymentWindow(url: string): Window | null {
     PAYMENT_WINDOW_NAME,
     `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
   );
+}
+
+/**
+ * Hand an already-open window to the gateway.
+ *
+ * Two shapes, because SBPDCL has two: hdfcV2 answers with a URL to open, while
+ * bbaroda and easebuzz answer with an action URL plus hidden fields that have
+ * to be POSTed. The portal does the same thing in its own createPaytmForm.
+ *
+ * The form is built with createElement and .value rather than written as an
+ * HTML string: field values come from a third party, and assigning them as DOM
+ * properties cannot inject markup the way string concatenation could.
+ */
+function enterGateway(win: Window, entry: PaymentEntry): void {
+  if (entry.kind === 'url') {
+    win.location.href = entry.url;
+    return;
+  }
+
+  const doc = win.document;
+  doc.open();
+  doc.write('<!doctype html><meta charset="utf-8"><title>Opening payment…</title>');
+  doc.close();
+
+  const form = doc.createElement('form');
+  form.method = 'POST';
+  form.action = entry.url;
+  for (const [name, value] of Object.entries(entry.fields)) {
+    const input = doc.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+  doc.body.appendChild(form);
+  form.submit();
 }
 
 // ─── Avatar colour palette ─────────────────────────────────────────────────
@@ -163,6 +200,9 @@ export function Home() {
     consumer: Consumer;
     amount: number;
     url: string;
+    /** How to enter the gateway; kept so the "popup blocked" retry can replay
+        a form post, which a bare URL cannot express. */
+    entry?: PaymentEntry;
     status: 'starting' | 'paying' | 'blocked' | 'checking' | 'done' | 'error';
     error?: string;
     newBalance?: string;
@@ -410,7 +450,7 @@ export function Home() {
             gateway: consumer.preferredGateway,
           });
           if (payWindow) {
-            payWindow.location.href = order.paymentUrl;
+            enterGateway(payWindow, order.entry);
             payWindowRef.current = payWindow;
           } else {
             // Popup blocked — the modal offers a manual "Open payment window".
@@ -420,6 +460,7 @@ export function Home() {
             consumer,
             amount: order.amount,
             url: order.paymentUrl,
+            entry: order.entry,
             status: payWindow ? 'paying' : 'blocked',
             balanceBefore, // carry forward — the outcome check compares against it
           });
@@ -443,7 +484,7 @@ export function Home() {
       setIsRecharging(true);
       showToast(`${t.toast.rechargeStart} ${consumer.name}...`);
 
-      let paymentUrl: string;
+      let entry: PaymentEntry;
       try {
         const { createRechargeOrder } = await import('../utils/sbpdclApi');
         const order = await createRechargeOrder({
@@ -452,7 +493,7 @@ export function Home() {
           mobileNumber: consumer.mobileNumber,
           gateway: consumer.preferredGateway,
         });
-        paymentUrl = order.paymentUrl;
+        entry = order.entry;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Could not start the recharge.';
         showToast(`Error: ${message}`, 'error');
@@ -467,11 +508,38 @@ export function Home() {
         // only ever shows the gateway, and wiping the session can break the
         // acknowledgement page the gateway redirects back to.
         const browser = win.cordova.InAppBrowser.open(
-          paymentUrl, '_blank',
+          entry.kind === 'url' ? entry.url : 'about:blank', '_blank',
           ['location=no','toolbar=yes','toolbarcolor=#2563eb','closebuttoncaption=✕ Close',
            'closebuttoncolor=#ffffff','hideurlbar=yes',
            'zoom=no','hardwareback=yes'].join(',')
         );
+
+        // bbaroda and easebuzz answer with a form to POST rather than a URL, and
+        // InAppBrowser can only be handed a URL — so the window opens blank and
+        // the form is injected once it is there. JSON.stringify supplies the
+        // quoting; the values are third-party data and must not be pasted into
+        // the script as bare literals.
+        if (entry.kind === 'form') {
+          browser.addEventListener('loadstop', function injectOnce(event: any) {
+            if (!String(event?.url || '').startsWith('about:blank')) return;
+            browser.removeEventListener('loadstop', injectOnce);
+            browser.executeScript({ code: `
+              (function () {
+                var f = document.createElement('form');
+                f.method = 'POST';
+                f.action = ${JSON.stringify(entry.url)};
+                var fields = ${JSON.stringify(entry.fields)};
+                Object.keys(fields).forEach(function (k) {
+                  var i = document.createElement('input');
+                  i.type = 'hidden'; i.name = k; i.value = fields[k];
+                  f.appendChild(i);
+                });
+                document.body.appendChild(f);
+                f.submit();
+              })();
+            ` });
+          });
+        }
 
         // Snapshot the balance so the outcome can be reported honestly on exit
         // rather than assuming the payment succeeded.
@@ -836,7 +904,8 @@ export function Home() {
         {/* Nav links */}
         <div className="flex items-center gap-1">
           {[
-            { label: lang === 'en' ? 'Home' : 'होम', active: true, onClick: () => {} },
+            { label: lang === 'en' ? 'Home' : 'होम', active: activeTab === 'home', onClick: () => { setActiveTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); } },
+            { label: lang === 'en' ? 'Meters' : 'मीटर', active: activeTab === 'meters', onClick: () => { setActiveTab('meters'); window.scrollTo({ top: 0, behavior: 'smooth' }); } },
             { label: lang === 'en' ? 'Help' : 'सहायता', active: false, onClick: () => setIsHelpOpen(true) },
             { label: lang === 'en' ? 'About' : 'के बारे में', active: false, onClick: () => setIsAboutOpen(true) },
           ].map((item) => (
@@ -1512,7 +1581,8 @@ export function Home() {
                 <button
                   type="button"
                   onClick={() => {
-                    const win = openPaymentWindow(payment.url);
+                    const win = openPaymentWindow('');
+                    if (win && payment.entry) enterGateway(win, payment.entry);
                     if (win) {
                       payWindowRef.current = win;
                       setPayment(p => (p ? { ...p, status: 'paying' } : p));
@@ -1622,7 +1692,7 @@ export function Home() {
           </div>
           <Select label={t.form.labelGateway} value={gateway} onChange={e => setGateway(e.target.value)} options={[
             { value: 'Bank of Baroda', label: 'Bank of Baroda' },
-            { value: 'Federal Bank', label: 'Federal Bank' },
+            { value: 'Easebuzz', label: 'Easebuzz' },
             { value: 'HDFC', label: 'HDFC' },
           ]} />
           <div className="pt-1">

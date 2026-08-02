@@ -257,8 +257,11 @@ export async function fetchBalanceFromApi(caNumber: string): Promise<BalanceDeta
 
 /** Portal gateway keys, mapped from the labels stored against a consumer. */
 const GATEWAY_KEYS: Record<string, string> = {
-  'HDFC': 'hdfc',
-  'Bank of Baroda': 'baroda',
+  'HDFC': 'hdfc',              // matches VALUE "hdfcV2"
+  'Bank of Baroda': 'baroda',  // matches VALUE "bbaroda"
+  'Easebuzz': 'easebuzz',
+  // Kept so meters saved under the old, wrong label still resolve: this
+  // gateway is Easebuzz, a payment aggregator, and never was Federal Bank.
   'Federal Bank': 'easebuzz',
 };
 
@@ -279,8 +282,24 @@ async function fetchGatewayId(preferred?: string): Promise<string> {
   return (match ?? gateways[0]).ID;
 }
 
+/**
+ * How the gateway wants to be entered.
+ *
+ * The portal's own callPgRequest tries JSON.parse on the response and falls
+ * back to a redirect, which is the whole contract:
+ *   - not JSON  -> `data` is a URL to open        (hdfcV2)
+ *   - JSON      -> { url, ...fields } to POST     (bbaroda, easebuzz)
+ * Supporting only the first is why every gateway except HDFC failed with
+ * "SBPDCL did not return a payment page".
+ */
+export type PaymentEntry =
+  | { kind: 'url'; url: string }
+  | { kind: 'form'; url: string; fields: Record<string, string> };
+
 export interface RechargeOrder {
-  /** Payment page to open for the user to complete payment themselves. */
+  /** How to hand the user to the gateway. */
+  entry: PaymentEntry;
+  /** Present only for `kind: 'url'`, kept so existing callers keep working. */
   paymentUrl: string;
   amount: number;
   caNumber: string;
@@ -326,13 +345,55 @@ export async function createRechargeOrder(opts: {
     gateway: gatewayId,
   }, PG_REQUEST_URL);
 
-  // The portal parses `data` as JSON for form-post gateways and otherwise treats
-  // it as a URL to redirect to. Juspay/HDFC returns the plain URL.
-  const data = response?.data;
-  const paymentUrl = typeof data === 'string' ? data.trim() : '';
-  if (!/^https?:\/\//i.test(paymentUrl)) {
+  const entry = parsePaymentEntry(response?.data);
+  return {
+    entry,
+    paymentUrl: entry.kind === 'url' ? entry.url : '',
+    amount,
+    caNumber: ca,
+  };
+}
+
+/**
+ * Read the gateway handoff out of a PGRequestService response.
+ *
+ * Mirrors the portal's own logic: try to parse `data` as JSON, and treat a
+ * parse failure as "it was a plain URL all along". A JSON body carrying an
+ * `authorization` field is BillDesk, which needs their hosted SDK rather than a
+ * form post — not one of the three gateways SBPDCL currently offers, but worth
+ * naming so it fails with something intelligible instead of a blank page.
+ */
+export function parsePaymentEntry(data: unknown): PaymentEntry {
+  const raw = typeof data === 'string' ? data.trim() : '';
+  if (!raw) throw new Error('SBPDCL did not return a payment page. Please try the portal directly.');
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Not JSON — the portal redirects straight to it.
+    if (!/^https?:\/\//i.test(raw)) {
+      throw new Error('SBPDCL did not return a payment page. Please try the portal directly.');
+    }
+    return { kind: 'url', url: raw };
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('SBPDCL returned an unreadable payment response.');
+  }
+  if (parsed.authorization !== undefined) {
+    throw new Error('This gateway needs the BillDesk app. Please choose another gateway.');
+  }
+
+  const url = String(parsed.url ?? '').trim();
+  if (!/^https?:\/\//i.test(url)) {
     throw new Error('SBPDCL did not return a payment page. Please try the portal directly.');
   }
 
-  return { paymentUrl, amount, caNumber: ca };
+  // Every key except `url` is a hidden form field, exactly as createPaytmForm does.
+  const fields: Record<string, string> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (key !== 'url' && value != null) fields[key] = String(value);
+  }
+  return { kind: 'form', url, fields };
 }
