@@ -5,9 +5,16 @@ import { useSettings } from '../hooks/useSettings';
 import { storage } from '../storage';
 import {
   Download, Upload, Moon, Sun, Info, Shield,
-  ChevronRight, Lock, Bell, BellOff, AlertTriangle, CheckCircle2, Type, Trash2
+  ChevronRight, Lock, Bell, BellOff, AlertTriangle, CheckCircle2, Type, Trash2, Mail
 } from 'lucide-react';
+
 import { useLang } from '../hooks/useLang';
+
+const APP_VERSION = 'v1.2';
+/** Published by the developer on their own contact page. */
+const DEV_EMAIL = 'Adityaraj3136@gmail.com';
+const CONTACT_URL = 'https://adityaraj3136.github.io/contact/';
+const REPO_URL = 'https://github.com/Adityaraj3136/Electricity-Recharge';
 // LocalNotifications and NativeBiometric are dynamically imported inside their
 // respective functions to avoid crashing on web/PWA where native plugins are unavailable.
 
@@ -189,7 +196,7 @@ export function SettingsModal({ isOpen, onClose, onOpenAbout }: SettingsModalPro
 
   // ── Contact Developer ──────────────────────────────────────────────────────
   const openContact = () => {
-    const url = 'https://adityaraj3136.github.io/contact/';
+    const url = CONTACT_URL;
     if (isNative()) {
       const win = window as any;
       if (win.cordova?.InAppBrowser) {
@@ -535,18 +542,80 @@ export function SettingsModal({ isOpen, onClose, onOpenAbout }: SettingsModalPro
     </Modal>
 
     {showContactModal && !isNative() && (
-      <Modal 
-        isOpen={showContactModal} 
-        onClose={() => setShowContactModal(false)} 
-        title="Contact Developer"
-        maxWidth="sm:max-w-4xl"
+      <Modal
+        isOpen={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        title={lang === 'en' ? 'Contact Developer' : 'डेवलपर से संपर्क'}
       >
-        <div className="w-full h-[60vh] -mx-6 -mb-6 mt-[-10px]">
-          <iframe 
-            src="https://adityaraj3136.github.io/contact/" 
-            className="w-full h-full border-0 bg-white dark:bg-slate-900"
-            title="Contact Developer"
-          />
+        {/* Rendered natively rather than as an iframe of the contact page.
+            A foreign document brought its own theme, padding and scrollbar
+            into the middle of the modal, so it never matched the app in
+            either light or dark mode, and it needed negative margins and a
+            hardcoded 60vh box to sit anywhere near right. These are the same
+            destinations, as plain links. */}
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            {lang === 'en'
+              ? 'Questions, bugs, or an idea for the app — any of these reach the developer.'
+              : 'सवाल, कोई गड़बड़ी, या ऐप के लिए कोई सुझाव — इनमें से किसी भी तरह से डेवलपर तक पहुँचें।'}
+          </p>
+
+          <a
+            href={`mailto:${DEV_EMAIL}?subject=${encodeURIComponent('Bijli Recharge ' + APP_VERSION + ' — feedback')}`}
+            className="flex items-center gap-3 w-full p-4 rounded-xl border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            <span className="w-10 h-10 rounded-full bg-primary-50 dark:bg-primary-500/15 text-primary-600 dark:text-primary-400 flex items-center justify-center shrink-0">
+              <Mail size={18} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-gray-900 dark:text-white">
+                {lang === 'en' ? 'Email the developer' : 'डेवलपर को ईमेल करें'}
+              </span>
+              <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">{DEV_EMAIL}</span>
+            </span>
+          </a>
+
+          <a
+            href={`${REPO_URL}/issues`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 w-full p-4 rounded-xl border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            <span className="w-10 h-10 rounded-full bg-primary-50 dark:bg-primary-500/15 text-primary-600 dark:text-primary-400 flex items-center justify-center shrink-0">
+              <AlertTriangle size={18} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-gray-900 dark:text-white">
+                {lang === 'en' ? 'Report a problem' : 'समस्या दर्ज करें'}
+              </span>
+              <span className="block text-xs text-gray-500 dark:text-gray-400">
+                {lang === 'en' ? 'Opens the issue tracker on GitHub' : 'GitHub पर इशू ट्रैकर खोलें'}
+              </span>
+            </span>
+          </a>
+
+          <a
+            href={CONTACT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            {lang === 'en' ? 'Open the full contact page' : 'पूरा संपर्क पेज खोलें'}
+            <ChevronRight size={14} />
+          </a>
+
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+            {lang === 'en'
+              ? `Mentioning ${APP_VERSION} and what you were doing makes it far easier to fix.`
+              : `${APP_VERSION} और आप क्या कर रहे थे, यह बताने से समस्या ठीक करना आसान हो जाता है।`}
+          </p>
+
+          <button
+            onClick={() => setShowContactModal(false)}
+            className="w-full py-3 rounded-xl border border-gray-200 dark:border-slate-700 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+          >
+            {lang === 'en' ? 'Close' : 'बंद करें'}
+          </button>
         </div>
       </Modal>
     )}
