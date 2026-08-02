@@ -154,6 +154,27 @@ const AppLogo = ({ className = "" }: { className?: string }) => (
 let globalSyncPromise: Promise<void> | null = null;
 
 /**
+ * Whether the app is in the foreground.
+ *
+ * Set from Capacitor's appStateChange. The payment window's countdown reads it
+ * so it does not keep ticking while the user is away in a UPI app: the gateway
+ * often reaches its acknowledgement page during the handoff, and a countdown
+ * running in the background would close the window before the user ever gets
+ * back to see the result.
+ */
+let appIsForeground = true;
+
+/** Runs now if the app is in the foreground, otherwise as soon as it returns. */
+function whenForeground(fn: () => void): void {
+  if (appIsForeground) { fn(); return; }
+  const poll = setInterval(() => {
+    if (!appIsForeground) return;
+    clearInterval(poll);
+    fn();
+  }, 400);
+}
+
+/**
  * How long a fetched balance is treated as current.
  *
  * A prepaid balance only moves when the meter consumes or a recharge lands, so
@@ -264,6 +285,7 @@ export function Home() {
   useEffect(() => {
     if (!isNative()) return;
     const listener = App.addListener('appStateChange', async ({ isActive }) => {
+      appIsForeground = isActive;
       if (!isActive && globalSyncPromise) {
         try {
           const { BackgroundTask } = await import('@capawesome/capacitor-background-task');
@@ -703,7 +725,12 @@ export function Home() {
           if (action === 'close-blank') {
             if (autoCloseTimer) clearTimeout(autoCloseTimer);
             autoCloseTimer = null;
-            setTimeout(() => { try { browser.close(); } catch (_) {} }, 400);
+            // Deferred until the app is back in front. Closing while the user
+            // is still in the UPI app would tear the window down behind them,
+            // and they would return to no sign of what happened.
+            whenForeground(() => {
+              setTimeout(() => { try { browser.close(); } catch (_) {} }, 400);
+            });
             return;
           }
 
@@ -711,8 +738,41 @@ export function Home() {
           // failures too, so the countdown must not claim the payment succeeded.
           if (action === 'start-countdown') {
             // Long enough to actually read the bank's acknowledgement.
-            let countdown = 20;
+            const COUNTDOWN_SECONDS = 20;
+            let countdown = COUNTDOWN_SECONDS;
+            // The countdown holds while the app is in the background, which is
+            // where it spends the whole UPI handoff. Without this the gateway's
+            // acknowledgement page can appear, count down and close itself while
+            // the user is still in their UPI app -- they come back to a window
+            // that already shut, with nothing said about the payment.
+            let wasHeld = false;
             const tick = () => {
+              const held = !appIsForeground;
+              // Back from the UPI app: give the full time to read the result,
+              // rather than whatever few seconds happened to be left.
+              if (wasHeld && !held) countdown = COUNTDOWN_SECONDS;
+              wasHeld = held;
+
+              if (held) {
+                browser.executeScript({ code: `
+                  (function() {
+                    var existing = document.getElementById('bijli-autoclosetimer');
+                    if (!existing) {
+                      existing = document.createElement('div');
+                      existing.id = 'bijli-autoclosetimer';
+                      existing.style = 'position:fixed; top:16px; left:50%; transform:translateX(-50%); background:#0f172a; border:2px solid #22c55e; color:white; padding:10px 22px; border-radius:30px; z-index:2147483647; font-weight:bold; box-shadow:0 8px 16px rgba(0,0,0,0.5); font-family:sans-serif; font-size:14px; text-align:center; white-space:nowrap;';
+                      document.body.appendChild(existing);
+                    }
+                    existing.innerHTML = 'Waiting for payment confirmation…';
+                  })();
+                `});
+                autoCloseTimer = setTimeout(tick, 1000);
+                return;
+              }
+
+              runTick();
+            };
+            const runTick = () => {
               browser.executeScript({ code: `
                 (function() {
                   var existing = document.getElementById('bijli-autoclosetimer');
