@@ -1,0 +1,1 @@
+import{t as e}from"./index-vGmAVBz-.js";var t=class extends e{beforeExit(e){throw this.unimplemented(`Not implemented on web.`)}finish(e){throw this.unimplemented(`Not implemented on web.`)}};export{t as BackgroundTaskWeb};
